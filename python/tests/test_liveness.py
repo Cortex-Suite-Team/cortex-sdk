@@ -58,10 +58,9 @@ async def test_liveness_two_cycles() -> None:
 
 
 @pytest.mark.asyncio
-async def test_liveness_stale_on_missing_pong() -> None:
-    """Channel transitions to STALE when pong stops arriving."""
+async def test_liveness_stale_on_missing_pong_reconnects_and_resyncs() -> None:
+    """A locally closed stale socket reconnects and resyncs the session."""
     stale_triggered = False
-    original_handle_stale = None
 
     server = await start_mock_server(
         auto_pong=False,   # no pong
@@ -92,6 +91,12 @@ async def test_liveness_stale_on_missing_pong() -> None:
 
         await wait_for(lambda: stale_triggered, timeout=3.0)
         assert stale_triggered
+        await wait_for(lambda: server.ws_connection_count >= 2, timeout=5.0)
+        await wait_for(
+            lambda: any(message["type"] == "system::resync" for message in server.received),
+            timeout=5.0,
+        )
+        assert client.channel_state == "OPEN"
     finally:
         await client.disconnect()
         await server.close()

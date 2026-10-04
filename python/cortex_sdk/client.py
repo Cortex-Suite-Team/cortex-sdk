@@ -405,7 +405,9 @@ class CortexClient:
         self._channel_state = "STALE"
         self._stop_liveness()
         self._transport.close(1001, "stale")
-        # on_close will trigger reconnect
+        # A locally initiated Transport.close() suppresses its on_close callback,
+        # so schedule recovery explicitly after fencing the stale socket.
+        self._handle_close(1001, "stale")
 
     def _handle_close(self, code: int, reason: str) -> None:
         self._file_transfers.abort_all()
