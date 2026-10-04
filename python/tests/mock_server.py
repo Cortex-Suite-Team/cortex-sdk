@@ -275,6 +275,7 @@ class MockServer:
         self._options = options
 
         self.received: list[dict[str, object]] = []
+        self.binary_frames: list[bytes] = []
         self.clients: Set[websockets.asyncio.server.ServerConnection] = set()
         self.schema_violations: list[SchemaViolation] = []
         self._hang_writers: set[asyncio.StreamWriter] = set()
@@ -504,6 +505,7 @@ async def start_mock_server(
         try:
             async for raw in ws:
                 if isinstance(raw, bytes):
+                    srv.binary_frames.append(raw)
                     continue
                 data = raw
                 msg: dict[str, object] = json.loads(data)

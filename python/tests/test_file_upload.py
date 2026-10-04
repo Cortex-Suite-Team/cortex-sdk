@@ -53,6 +53,10 @@ async def test_file_upload() -> None:
         attachment_id = await client.upload_attachment(b"\x00\x01\x02\x03")
         assert attachment_id == FIXED_ATTACHMENT_ID
 
+        binary_frames_before_zero = len(server.binary_frames)
+        assert await client.upload_file(b"") == FIXED_ATTACHMENT_ID
+        assert len(server.binary_frames) == binary_frames_before_zero
+
         session_file_bytes = await client.download_file(attachment_id)
         assert session_file_bytes == b"mock file bytes"
 

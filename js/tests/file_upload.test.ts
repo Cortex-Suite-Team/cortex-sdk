@@ -47,6 +47,10 @@ describe('file_upload', () => {
       const attachmentId = await client.uploadAttachment(fakeFile);
       expect(attachmentId).toBe(FIXED_ATTACHMENT_ID);
 
+      const binaryFramesBeforeZero = server.receivedFrames.filter((frame) => frame.startsWith('43465431')).length;
+      expect(await client.uploadFile(new Uint8Array())).toBe(FIXED_ATTACHMENT_ID);
+      expect(server.receivedFrames.filter((frame) => frame.startsWith('43465431'))).toHaveLength(binaryFramesBeforeZero);
+
       const sessionBytes = await client.downloadFile(attachmentId);
       expect(await sessionBytes.text()).toBe('mock file bytes');
 
