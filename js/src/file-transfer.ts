@@ -164,9 +164,17 @@ export class FileTransferManager {
 
   handleBinary(frame: Uint8Array): void {
     let decoded: ReturnType<typeof decodeCft1>;
-    try { decoded = decodeCft1(frame); } catch { return; }
+    try {
+      decoded = decodeCft1(frame);
+    } catch {
+      this.abortAll(makeError('invalid_file_transfer', 'Malformed inbound CFT1 frame'));
+      return;
+    }
     const state = this.downloads.get(decoded.transferId);
-    if (!state) return;
+    if (!state) {
+      this.abortAll(makeError('invalid_file_transfer', `Unknown inbound transfer_id: ${decoded.transferId}`));
+      return;
+    }
     if (decoded.sequence !== state.expectedSequence) { this.rejectTransfer(decoded.transferId, makeError('invalid_file_transfer', 'Download sequence mismatch')); return; }
     if (state.receivedSize + decoded.payload.byteLength > state.declaredSize) { this.rejectTransfer(decoded.transferId, makeError('file_download_failed', 'Download exceeds declared size')); return; }
     state.chunks.push(decoded.payload.slice());
@@ -175,11 +183,10 @@ export class FileTransferManager {
     this.finishDownloadIfReady(decoded.transferId, state);
   }
 
-  abortAll(): void {
-    const error = makeError('file_transfer_interrupted', 'File transfer interrupted by connection close');
+  abortAll(error: Error = makeError('file_transfer_interrupted', 'File transfer interrupted by connection close')): void {
     for (const [id, pending] of this.pending) { clearTimeout(pending.timer); pending.reject(error); this.pending.delete(id); }
     for (const id of Array.from(this.downloads.keys())) this.rejectTransfer(id, error);
-    this.uploads.clear();
+    for (const transferId of this.uploads.keys()) this.uploads.set(transferId, error);
   }
 
   private request(sessionId: string, type: string, expectedType: string, payload: Record<string, unknown>, transferId?: string, onResponse?: (message: CortexMessage) => void): Promise<CortexMessage> {

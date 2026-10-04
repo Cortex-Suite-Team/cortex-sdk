@@ -20,6 +20,7 @@ class Transport:
         self._send_timeout = send_timeout
         self._ws: websockets.asyncio.client.ClientConnection | None = None
         self._reader_task: asyncio.Task[None] | None = None
+        self._connection_generation = 0
 
         # Callbacks set by the consumer (client.py)
         self.on_text: Callable[[str], None] | None = None
@@ -54,6 +55,7 @@ class Transport:
             ) from exc
 
         self._ws = ws
+        self._connection_generation += 1
         self._reader_task = asyncio.create_task(self._reader_loop())
 
     async def send_json(self, message: dict[str, object]) -> None:
@@ -73,12 +75,15 @@ class Transport:
         ws = self._ws
         if ws is None:
             raise make_error("file_transfer_interrupted", "No open connection")
+        generation = self._connection_generation
         try:
             await asyncio.wait_for(ws.send(data), timeout=self._send_timeout)
         except asyncio.TimeoutError as exc:
             raise make_error("transport_send_timeout", "Binary send timed out") from exc
         except Exception as exc:
             raise make_error("file_transfer_interrupted", str(exc)) from exc
+        if self._ws is not ws or self._connection_generation != generation:
+            raise make_error("file_transfer_interrupted", "Connection changed during binary send")
 
     def close(self, code: int = 1000, reason: str = "disconnect") -> None:
         """Synchronous close — cancels reader task and schedules WS close."""
@@ -86,6 +91,8 @@ class Transport:
         ws = self._ws
         self._reader_task = None
         self._ws = None
+        if ws is not None:
+            self._connection_generation += 1
 
         if task and not task.done():
             task.cancel()
@@ -102,6 +109,8 @@ class Transport:
         ws = self._ws
         self._reader_task = None
         self._ws = None
+        if ws is not None:
+            self._connection_generation += 1
 
         if task and not task.done():
             task.cancel()
@@ -130,6 +139,9 @@ class Transport:
             # Only fire on_close if we weren't already cleaned up
             if self._ws is None:
                 return  # transport.close() was called — suppress callback
+            if self._ws is ws:
+                self._ws = None
+                self._connection_generation += 1
             # .rcvd is the received close frame (None if connection was aborted)
             rcvd = exc.rcvd
             code = rcvd.code if rcvd is not None else 1006

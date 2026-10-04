@@ -25,6 +25,18 @@ class _FakeConnection:
         self.sent.append(data)
 
 
+class _GatedConnection(_FakeConnection):
+    def __init__(self) -> None:
+        super().__init__([])
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def send(self, data: str | bytes) -> None:
+        self.started.set()
+        await self.release.wait()
+        self.sent.append(data)
+
+
 @pytest.mark.asyncio
 async def test_reader_keeps_text_and_binary_separate_and_binary_send_is_awaited() -> None:
     transport = Transport(1.0, 1.0)
@@ -41,3 +53,23 @@ async def test_reader_keeps_text_and_binary_separate_and_binary_send_is_awaited(
     transport._ws = connection  # type: ignore[assignment]
     await transport.send_binary(b"CFT1")
     assert connection.sent == [b"CFT1"]
+
+
+@pytest.mark.asyncio
+async def test_binary_send_rejects_if_connection_generation_changes() -> None:
+    transport = Transport(1.0, 1.0)
+    old_connection = _GatedConnection()
+    new_connection = _FakeConnection([])
+    transport._ws = old_connection  # type: ignore[assignment]
+    transport._connection_generation = 1
+
+    send = asyncio.create_task(transport.send_binary(b"CFT1"))
+    await old_connection.started.wait()
+    transport._ws = new_connection  # type: ignore[assignment]
+    transport._connection_generation = 2
+    old_connection.release.set()
+
+    with pytest.raises(Exception) as exc_info:
+        await send
+    assert getattr(exc_info.value, "code", None) == "file_transfer_interrupted"
+    assert new_connection.sent == []

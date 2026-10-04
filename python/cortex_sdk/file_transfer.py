@@ -168,9 +168,11 @@ class FileTransferManager:
         try:
             transfer_id, sequence, payload = decode_cft1(frame)
         except Exception:
+            self.abort_all(make_error("invalid_file_transfer", "Malformed inbound CFT1 frame"))
             return
         state = self._downloads.get(transfer_id)
         if state is None:
+            self.abort_all(make_error("invalid_file_transfer", f"Unknown inbound transfer_id: {transfer_id}"))
             return
         if sequence != state.expected_sequence:
             self._reject_transfer(transfer_id, make_error("invalid_file_transfer", "Download sequence mismatch"))
@@ -183,13 +185,15 @@ class FileTransferManager:
         state.expected_sequence += 1
         self._finish_download(transfer_id, state)
 
-    def abort_all(self) -> None:
-        error = make_error("file_transfer_interrupted", "File transfer interrupted by connection close")
+    def abort_all(self, error: Exception | None = None) -> None:
+        if error is None:
+            error = make_error("file_transfer_interrupted", "File transfer interrupted by connection close")
         for client_msg_id in list(self._pending):
             self._reject_pending(client_msg_id, error)
         for transfer_id in list(self._downloads):
             self._reject_transfer(transfer_id, error)
-        self._uploads.clear()
+        for transfer_id in self._uploads:
+            self._uploads[transfer_id] = error
 
     async def _request(self, session_id: str, message_type: str, expected_type: str, payload: dict[str, object], transfer_id: str | None = None, on_response: Callable[[CortexMessage], None] | None = None) -> CortexMessage:
         client_msg_id = f"cli_file_{message_type.replace('::', '_').replace('.', '_')}_{uuid.uuid4().hex}"
