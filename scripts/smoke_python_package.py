@@ -44,14 +44,14 @@ def assert_artifacts_include_py_typed(wheel: Path, sdist: Path) -> None:
         raise RuntimeError("sdist is missing cortex_sdk/py.typed")
 
 
-def run_smoke_install(wheel: Path) -> None:
+def run_smoke_install(artifact: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="cortex-smoke-py-") as tmp:
         temp_dir = Path(tmp)
         venv_dir = temp_dir / "venv"
         venv.create(venv_dir, with_pip=True)
         python_bin = venv_dir / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
 
-        run([str(python_bin), "-m", "pip", "install", str(wheel)], cwd=temp_dir)
+        run([str(python_bin), "-m", "pip", "install", str(artifact)], cwd=temp_dir)
 
         smoke_path = temp_dir / "smoke.py"
         smoke_path.write_text(
@@ -80,6 +80,7 @@ def main() -> int:
         wheel, sdist = find_artifacts()
         assert_artifacts_include_py_typed(wheel, sdist)
         run_smoke_install(wheel)
+        run_smoke_install(sdist)
     except (RuntimeError, subprocess.CalledProcessError, zipfile.BadZipFile, tarfile.TarError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
