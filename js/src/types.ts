@@ -8,6 +8,8 @@ export interface CortexClientOptions {
    * @default "https://cortexsuite.app"
    */
   authUrl?: string;
+  /** Override the SessionManager upload endpoint. Relative paths resolve against the runtime origin. */
+  uploadUrl?: string;
   onMessage: (message: CortexMessage) => void;
   connectTimeout?: number;
   sessionOpenTimeout?: number;

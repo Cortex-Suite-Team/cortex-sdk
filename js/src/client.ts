@@ -71,8 +71,8 @@ function summarizeSendPayload(payload: {
 
 export class CortexClient {
   private readonly _options:
-    Required<Omit<CortexClientOptions, 'apiKey' | 'onMessage' | 'workerRef'>>
-    & Pick<CortexClientOptions, 'apiKey' | 'onMessage' | 'workerRef'>;
+    Required<Omit<CortexClientOptions, 'apiKey' | 'onMessage' | 'workerRef' | 'uploadUrl'>>
+    & Pick<CortexClientOptions, 'apiKey' | 'onMessage' | 'workerRef' | 'uploadUrl'>;
   private readonly _platform: CortexClientPlatform;
   private readonly _messageHandlers = new Set<(message: CortexMessage) => void>();
 

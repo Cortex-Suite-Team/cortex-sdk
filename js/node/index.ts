@@ -17,18 +17,18 @@ const nodeFetch: FetchFn = (url, init) => {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const NodeFormData: FormDataCtor = (globalThis as any).FormData;
 
-function makePlatform(): CortexClientPlatform {
+function makePlatform(options: CortexClientOptions): CortexClientPlatform {
   return {
     WS: WebSocket as unknown as CortexClientPlatform['WS'],
     fetchFn: nodeFetch,
     FormDataClass: NodeFormData,
-    uploadUrl: UPLOAD_URL,
+    uploadUrl: options.uploadUrl ?? UPLOAD_URL,
   };
 }
 
 export class CortexNodeClient extends CortexClient {
   constructor(options: CortexClientOptions) {
-    super(options, makePlatform());
+    super(options, makePlatform(options));
   }
 
   /** Node-specific override: accepts browser-safe inputs plus file paths and Readable streams */
@@ -43,7 +43,7 @@ export class CortexNodeClient extends CortexClient {
       throw makeError('session_not_ready', 'Session is not ready');
     }
     const runtimeBaseUrl = this['_requireRuntimeHttpBaseUrl']() as string;
-    const uploadUrl = new URL(UPLOAD_URL, `${runtimeBaseUrl}/`);
+    const uploadUrl = new URL(this['_platform'].uploadUrl, `${runtimeBaseUrl}/`);
     uploadUrl.searchParams.set('session_id', sessionId);
     return uploadFileNode(
       file,

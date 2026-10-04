@@ -3,18 +3,18 @@ import type { CortexClientOptions } from '../src/types.js';
 
 const UPLOAD_URL = '/upload';
 
-function makePlatform(): CortexClientPlatform {
+function makePlatform(options: CortexClientOptions): CortexClientPlatform {
   return {
     WS: WebSocket as unknown as CortexClientPlatform['WS'],
     fetchFn: (url, init) => fetch(url, init as RequestInit) as Promise<import('../src/types.js').Response>,
     FormDataClass: FormData,
-    uploadUrl: UPLOAD_URL,
+    uploadUrl: options.uploadUrl ?? UPLOAD_URL,
   };
 }
 
 export class CortexBrowserClient extends CortexClient {
   constructor(options: CortexClientOptions) {
-    super(options, makePlatform());
+    super(options, makePlatform(options));
   }
 }
 
