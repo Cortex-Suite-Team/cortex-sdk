@@ -120,7 +120,7 @@ await client.send_message(content="Hello")
 # With attachments:
 await client.send_message(
     content="Analyze this document.",
-    attachments=["att_abc123"],
+    attachments=["sf_abc123"],
 )
 ```
 
@@ -129,7 +129,7 @@ await client.send_message(
 | Parameter | JS/Node type | Python type | Required | Description |
 |---|---|---|---|---|
 | `content` | `string` | `str` | **yes** | Message text |
-| `attachments` | `string[]` | `list[str]` | no | List of `attachment_id` strings from `uploadAttachment()` |
+| `attachments` | `(string \| SessionFileAttachment)[]` | `list[str \| SessionFileAttachment]` | no | Canonical `sf_...` references from upload; serialized as `payload.meta.attachments[].file_ref` |
 
 **Returns:** `Promise<void>` / coroutine
 
@@ -139,21 +139,21 @@ await client.send_message(
 
 ### `uploadAttachment(file)` / `upload_attachment(file)`
 
-Uploads a file over HTTP and returns a stable `attachment_id` string for use in `sendMessage()`.
+Uploads a file through SessionManager and returns a canonical `sf_...` `file_ref` for use in `sendMessage()`.
 
 ```js
 // JavaScript (Browser)
-const id = await client.uploadAttachment(fileObject);     // File or Blob
+const fileRef = await client.uploadAttachment(fileObject);     // File or Blob
 
 // JavaScript (Node.js)
-const id = await client.uploadAttachment("./report.pdf"); // file path string
-const id = await client.uploadAttachment(buffer);          // Buffer or Uint8Array
+const fileRef = await client.uploadAttachment("./report.pdf"); // file path string
+const fileRef = await client.uploadAttachment(buffer);          // Buffer or Uint8Array
 ```
 
 ```python
 # Python
-attachment_id = await client.upload_attachment("./report.pdf")  # file path string
-attachment_id = await client.upload_attachment(file_bytes)       # bytes
+file_ref = await client.upload_attachment("./report.pdf")  # file path string
+file_ref = await client.upload_attachment(file_bytes)       # bytes
 ```
 
 **Accepted input types:**
@@ -164,7 +164,7 @@ attachment_id = await client.upload_attachment(file_bytes)       # bytes
 | JavaScript (Node.js) | File path `string`, `Buffer`, `Uint8Array`, `ReadableStream` |
 | Python | File path `str`, `bytes`, file-like object |
 
-**Returns:** `Promise<string>` / `str` — the `attachment_id`
+**Returns:** `Promise<string>` / `str` — a canonical `sf_...` `file_ref`. Missing, malformed, or legacy-only upload responses fail with `upload_failed`.
 
 **Throws:** `CortexError` with code `upload_failed`, `upload_too_large`, or `upload_type_rejected`.
 

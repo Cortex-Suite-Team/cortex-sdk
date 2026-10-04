@@ -23,6 +23,7 @@ import { createTransport } from './transport.js';
 import { createLiveness } from './liveness.js';
 import { createSession } from './session.js';
 import { uploadFile, type UploadInput } from './upload.js';
+import { parsePublicFileList, parsePublicFileRef, requireSessionFileRef } from './files.js';
 import type {
   CortexClientOptions,
   CortexMessage,
@@ -40,6 +41,7 @@ import type {
   SessionContext,
   UploadFileOptions,
   NormalAuthTokenResponse,
+  SendMessageOptions,
 } from './types.js';
 
 export interface CortexClientPlatform {
@@ -169,7 +171,7 @@ export class CortexClient {
     this._transport.close();
   }
 
-  async sendMessage(options: { content: unknown; attachments?: unknown[]; meta?: Record<string, unknown> }): Promise<void> {
+  async sendMessage(options: SendMessageOptions): Promise<void> {
     debugLog(this._debugEnabled, '[sdk] CortexClient.sendMessage start', summarizeSendPayload(options));
     this._requireActiveSessionId();
     await this._session.sendChatMessage(options.content, options.attachments, options.meta);
@@ -211,20 +213,21 @@ export class CortexClient {
     return this.uploadFile(file);
   }
 
-  async downloadFile(fileId: string, options: DownloadFileOptions = {}): Promise<Blob> {
+  async downloadFile(fileRef: string, options: DownloadFileOptions = {}): Promise<Blob> {
     if (!this._accessToken) throw makeError('auth_invalid', 'Not connected');
+    const canonicalFileRef = requireSessionFileRef(fileRef);
     const scope = options.scope ?? 'session';
     let url: string;
     if (scope === 'session') {
       const sessionId = this._requireSessionId(options.sessionId);
-      url = `${this._requireRuntimeHttpBaseUrl()}/download/${encodeURIComponent(fileId)}`;
+      url = `${this._requireRuntimeHttpBaseUrl()}/download/${encodeURIComponent(canonicalFileRef)}`;
       url = withQueryParams(url, { session_id: sessionId });
     } else if (scope === 'project') {
       if (options.projectId === undefined) {
         throw makeError('file_operation_failed', 'projectId is required for project file download');
       }
       url = `${this._requireCpApiUrl()}/api/workspace/projects/${encodeURIComponent(String(options.projectId))}`
-        + `/files/${encodeURIComponent(fileId)}/download/`;
+        + `/files/${encodeURIComponent(canonicalFileRef)}/download/`;
     } else {
       throw makeError('file_operation_failed', `Unsupported file scope: ${scope}`);
     }
@@ -251,10 +254,11 @@ export class CortexClient {
     options: { sessionId?: string } = {},
   ): Promise<string> {
     if (!this._accessToken) throw makeError('auth_invalid', 'Not connected');
+    const canonicalFileRef = requireSessionFileRef(fileRef);
     const sessionId = this._requireSessionId(options.sessionId);
     const base = this._requireRuntimeHttpBaseUrl();
     const mintUrl = `${base}/sessions/${encodeURIComponent(sessionId)}`
-      + `/files/${encodeURIComponent(fileRef)}/download-token`;
+      + `/files/${encodeURIComponent(canonicalFileRef)}/download-token`;
     const body = await this._requestJson(mintUrl, 'POST');
     const downloadUrl = body['download_url'];
     if (typeof downloadUrl !== 'string' || !downloadUrl) {
@@ -285,15 +289,16 @@ export class CortexClient {
     }
 
     const body = await this._requestJson(withQueryParams(url, query));
-    return body as unknown as FileListResult;
+    return parsePublicFileList(body);
   }
 
-  async promoteFile(fileId: string, options: PromoteFileOptions): Promise<FileRef> {
+  async promoteFile(fileRef: string, options: PromoteFileOptions): Promise<FileRef> {
     if (!this._accessToken) throw makeError('auth_invalid', 'Not connected');
+    const canonicalFileRef = requireSessionFileRef(fileRef);
     const url = `${this._requireCpApiUrl()}/api/workspace/projects/${encodeURIComponent(String(options.projectId))}`
-      + `/files/${encodeURIComponent(fileId)}/promote/`;
+      + `/files/${encodeURIComponent(canonicalFileRef)}/promote/`;
     const body = await this._requestJson(url, 'POST');
-    return body as unknown as FileRef;
+    return parsePublicFileRef(body);
   }
 
   async stop(): Promise<void> {

@@ -1,4 +1,5 @@
 import { makeError } from './errors.js';
+import { requireSessionFileRef } from './files.js';
 import type { FetchFn, FormDataCtor } from './types.js';
 
 export type UploadInput = Blob | ArrayBuffer | string | Uint8Array;
@@ -54,11 +55,9 @@ export async function uploadFile(
   }
 
   const body = await res.json() as Record<string, unknown>;
-  // Canonical session-file id is file_ref (sf_...). Fall back to file_id/attachment_id for
-  // older SessionManager builds that have not adopted the descriptor model yet.
-  const fileId = body['file_ref'] ?? body['file_id'] ?? body['attachment_id'];
-  if (typeof fileId !== 'string') {
-    throw makeError('upload_failed', 'Upload response did not include a file reference');
+  try {
+    return requireSessionFileRef(body['file_ref'], 'Upload response file_ref');
+  } catch {
+    throw makeError('upload_failed', 'Upload response must include a canonical sf_ file_ref');
   }
-  return fileId;
 }

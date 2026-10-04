@@ -77,5 +77,7 @@ export type {
   DownloadFileOptions,
   ListFilesOptions,
   PromoteFileOptions,
+  SessionFileAttachment,
+  SessionFileAttachmentInput,
 } from '../src/types.js';
 export { CortexError } from '../src/errors.js';

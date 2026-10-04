@@ -1,11 +1,13 @@
 import { SCHEMA_VERSION } from './constants.js';
 import { makeError, lookupError } from './errors.js';
+import { normalizeSessionFileAttachments } from './files.js';
 import type { Transport } from './transport.js';
 import type {
   CortexMessage,
   EscalationReplyAction,
   EscalationReplyContent,
   RuntimeBootstrap,
+  SessionFileAttachmentInput,
   SessionState,
 } from './types.js';
 
@@ -36,7 +38,7 @@ export interface SessionController {
   sendInit(bootstrap: RuntimeBootstrap): Promise<void>;
   sendResync(): Promise<void>;
   sendStop(): Promise<void>;
-  sendChatMessage(content: unknown, attachments: unknown[] | undefined, meta?: Record<string, unknown>): Promise<void>;
+  sendChatMessage(content: unknown, attachments: SessionFileAttachmentInput[] | undefined, meta?: Record<string, unknown>): Promise<void>;
   sendSystemLogin(login: string, password: string): Promise<void>;
   sendEscalationReply(
     escalationId: string,
@@ -133,14 +135,16 @@ export function createSession(
 
   function buildMessagePayload(
     content: unknown,
-    attachments: unknown[] | undefined,
+    attachments: SessionFileAttachmentInput[] | undefined,
     meta?: Record<string, unknown>,
   ): Record<string, unknown> {
     const payload: Record<string, unknown> = { content, role: 'user' };
     const combinedMeta: Record<string, unknown> = {};
     // meta merged first; official attachments param always wins
     if (meta) Object.assign(combinedMeta, meta);
-    if (attachments && attachments.length > 0) combinedMeta['attachments'] = attachments;
+    if (attachments && attachments.length > 0) {
+      combinedMeta['attachments'] = normalizeSessionFileAttachments(attachments);
+    }
     if (Object.keys(combinedMeta).length > 0) payload['meta'] = combinedMeta;
     return payload;
   }
@@ -256,7 +260,7 @@ export function createSession(
       return send(buildEnvelope('sandbox::stop', {}));
     },
 
-    sendChatMessage(content: unknown, attachments: unknown[] | undefined, meta?: Record<string, unknown>): Promise<void> {
+    sendChatMessage(content: unknown, attachments: SessionFileAttachmentInput[] | undefined, meta?: Record<string, unknown>): Promise<void> {
       return send(buildEnvelope('chat::message', buildMessagePayload(content, attachments, meta)));
     },
 

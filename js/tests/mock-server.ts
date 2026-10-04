@@ -69,7 +69,7 @@ export interface MockServer {
 const FIXED_SESSION_ID = 'sess_abc123';
 const FIXED_ACCESS_TOKEN = 'access_token_v1';
 const FIXED_REFRESH_TOKEN = 'refresh_token_v1';
-const FIXED_ATTACHMENT_ID = 'att_test123';
+const FIXED_ATTACHMENT_ID = 'sf_test123';
 
 let _seq = 0;
 function nextSeq(): number { return ++_seq; }
@@ -318,7 +318,13 @@ export function startMockServer(options: MockServerOptions = {}): Promise<MockSe
           }
 
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ attachment_id: FIXED_ATTACHMENT_ID }));
+          res.end(JSON.stringify({ file_ref: FIXED_ATTACHMENT_ID }));
+          return;
+        }
+
+        if (req.method === 'POST' && url === `/sessions/${FIXED_SESSION_ID}/files/${FIXED_ATTACHMENT_ID}/download-token`) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ download_url: '/download-token/mock' }));
           return;
         }
 
@@ -332,7 +338,7 @@ export function startMockServer(options: MockServerOptions = {}): Promise<MockSe
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({
             files: [{
-              file_id: FIXED_ATTACHMENT_ID,
+              file_ref: FIXED_ATTACHMENT_ID,
               filename: 'upload',
               scope_type: 'session',
               scope_id: FIXED_SESSION_ID,
@@ -347,7 +353,7 @@ export function startMockServer(options: MockServerOptions = {}): Promise<MockSe
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({
             files: [{
-              file_id: FIXED_ATTACHMENT_ID,
+              file_ref: FIXED_ATTACHMENT_ID,
               filename: 'upload',
               scope_type: 'persistent',
               scope_id: '42',
@@ -361,7 +367,7 @@ export function startMockServer(options: MockServerOptions = {}): Promise<MockSe
         if (req.method === 'POST' && url.startsWith('/api/workspace/projects/') && url.endsWith('/promote/')) {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({
-            file_id: FIXED_ATTACHMENT_ID,
+            file_ref: FIXED_ATTACHMENT_ID,
             filename: 'upload',
             scope_type: 'persistent',
             scope_id: '42',

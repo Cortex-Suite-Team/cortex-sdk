@@ -6,12 +6,14 @@ from typing import Callable
 
 from .constants import SCHEMA_VERSION
 from .errors import make_error, lookup_error, CortexError
+from .files import normalize_session_file_attachments
 from .transport import Transport
 from .types import (
     CortexMessage,
     EscalationReplyAction,
     EscalationReplyContent,
     RuntimeBootstrap,
+    SessionFileAttachmentInput,
     SessionState,
 )
 
@@ -117,11 +119,11 @@ class SessionManager:
         await self._send(self._build_envelope("sandbox::stop", {}))
 
     async def send_chat_message(
-        self, content: str, attachments: list[str] | None
+        self, content: str, attachments: list[SessionFileAttachmentInput] | None
     ) -> None:
         payload: dict[str, object] = {"content": content, "role": "user"}
         if attachments:
-            payload["meta"] = {"attachments": attachments}
+            payload["meta"] = {"attachments": normalize_session_file_attachments(attachments)}
         await self._send(self._build_envelope("chat::message", payload))
 
     async def send_escalation_reply(

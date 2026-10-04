@@ -253,10 +253,10 @@ try {
 from cortex_sdk import CortexError
 
 try:
-    attachment_id = await client.upload_attachment("./document.pdf")
+    file_ref = await client.upload_attachment("./document.pdf")
     await client.send_message(
         content="Analyze this.",
-        attachments=[attachment_id],
+        attachments=[file_ref],
     )
 except CortexError as e:
     if e.code == "upload_failed":

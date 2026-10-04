@@ -2,6 +2,7 @@ import { createReadStream } from 'fs';
 import { basename } from 'path';
 import { Readable } from 'stream';
 import { makeError } from '../src/errors.js';
+import { requireSessionFileRef } from '../src/files.js';
 import type { UploadInput } from '../src/upload.js';
 import type { FetchFn } from '../src/types.js';
 
@@ -60,11 +61,11 @@ export async function uploadFileNode(
   }
 
   const body = await res.json() as Record<string, unknown>;
-  const fileId = body['file_ref'] ?? body['file_id'] ?? body['attachment_id'];
-  if (typeof fileId !== 'string') {
-    throw makeError('upload_failed', 'Upload response did not include file_id');
+  try {
+    return requireSessionFileRef(body['file_ref'], 'Upload response file_ref');
+  } catch {
+    throw makeError('upload_failed', 'Upload response must include a canonical sf_ file_ref');
   }
-  return fileId;
 }
 
 function streamToBuffer(stream: Readable): Promise<Buffer> {

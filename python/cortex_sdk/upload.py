@@ -5,6 +5,7 @@ from typing import BinaryIO
 import httpx
 
 from .errors import make_error
+from .files import require_session_file_ref
 
 # Default upload endpoint — overridden via client's _upload_url for tests
 _DEFAULT_UPLOAD_URL = "/upload"
@@ -15,7 +16,7 @@ async def upload_file(
     access_token: str,
     upload_url: str = _DEFAULT_UPLOAD_URL,
 ) -> str:
-    """Upload a file and return the file_id / attachment_id.
+    """Upload a file and return the canonical session file_ref.
 
     Args:
         file: file path string, raw bytes, or a file-like (BinaryIO) object.
@@ -47,7 +48,7 @@ async def upload_file(
         raise make_error("upload_failed", f"Upload failed with status {resp.status_code}")
 
     body = resp.json()
-    file_id = body.get("file_id") or body.get("attachment_id")
-    if not file_id:
-        raise make_error("upload_failed", "Upload response did not include file_id")
-    return str(file_id)
+    try:
+        return require_session_file_ref(body.get("file_ref"), "Upload response file_ref")
+    except Exception as exc:
+        raise make_error("upload_failed", "Upload response must include a canonical sf_ file_ref") from exc

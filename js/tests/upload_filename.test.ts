@@ -139,7 +139,7 @@ describe('upload filename preservation', () => {
       await uploadFileNode(filePath, 'token', '/upload', async () => ({
         ok: true,
         status: 200,
-        json: async () => ({ file_id: 'fi_test' }),
+        json: async () => ({ file_ref: 'sf_test' }),
       }));
 
       expect(requireCaptured(captured).entries[0]?.filename).toBe('invoice.pdf');
@@ -150,5 +150,29 @@ describe('upload filename preservation', () => {
         value: originalFormData,
       });
     }
+  });
+
+  it.each([
+    [{ file_id: 'fi_test' }],
+    [{ attachment_id: 'fa_test' }],
+    [{ file_ref: 'fi_test' }],
+    [{}],
+  ])('rejects a non-canonical browser upload response: %p', async (body) => {
+    await expect(uploadFile(
+      new Uint8Array([1]),
+      'token',
+      '/upload',
+      async () => ({ ok: true, status: 200, json: async () => body }),
+      CapturingFormData as unknown as FormDataCtor,
+    )).rejects.toMatchObject({ code: 'upload_failed' });
+  });
+
+  it('rejects a legacy-only node upload response', async () => {
+    await expect(uploadFileNode(
+      new Uint8Array([1]),
+      'token',
+      '/upload',
+      async () => ({ ok: true, status: 200, json: async () => ({ file_id: 'fi_test' }) }),
+    )).rejects.toMatchObject({ code: 'upload_failed' });
   });
 });

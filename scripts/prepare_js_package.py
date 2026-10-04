@@ -31,7 +31,7 @@ def copy_tree_flattened(source_root: Path, target_root: Path) -> None:
 
 
 def rewrite_text_file(path: Path, replacements: dict[str, str]) -> None:
-    if path.suffix not in {".js", ".d.ts"}:
+    if not (path.name.endswith(".js") or path.name.endswith(".d.ts")):
         return
     contents = path.read_text(encoding="utf-8")
     for old, new in replacements.items():
@@ -63,26 +63,8 @@ def rebuild_runtime_tree(target_name: str, nested_name: str) -> None:
 def create_root_types() -> None:
     types_dir = DIST_DIR / "types"
     shutil.rmtree(types_dir, ignore_errors=True)
-    root_types = """export type {
-  ChannelState,
-  CortexClientOptions,
-  CortexMessage,
-  SendMessageOptions,
-  SessionState,
-} from "../node/index.js";
-export { CortexError } from "../node/index.js";
-
-export declare class CortexClient {
-  constructor(options: import("../node/index.js").CortexClientOptions);
-  connect(): Promise<void>;
-  disconnect(): Promise<void>;
-  sendMessage(options: import("../node/index.js").SendMessageOptions): Promise<void>;
-  uploadAttachment(file: File | Blob | ArrayBuffer | Uint8Array | string): Promise<string>;
-  stop(): Promise<void>;
-  readonly sessionState: import("../node/index.js").SessionState;
-  readonly channelState: import("../node/index.js").ChannelState;
-  readonly sessionId: string | null;
-}
+    root_types = """export { CortexClient, CortexError } from "../node/index.js";
+export type * from "../node/index.js";
 """
     write_text(types_dir / "index.d.ts", root_types)
 

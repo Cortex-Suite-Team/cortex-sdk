@@ -1,6 +1,6 @@
 {
   "name": "file_upload",
-  "description": "Client uploads a file over HTTP, receives an attachment_id, then sends a message with the attachment reference.",
+  "description": "Client uploads a file over HTTP, receives a canonical file_ref, then sends a message with the attachment reference.",
   "steps": [
     {
       "direction": "client",
@@ -32,7 +32,7 @@
       "note": "--- OUT OF BAND: SDK sends HTTP POST multipart/form-data to runtime upload endpoint with Authorization: Bearer <access_token> ---"
     },
     {
-      "note": "--- OUT OF BAND: server responds { \"attachment_id\": \"att_xyz789\" } ---"
+      "note": "--- OUT OF BAND: server responds { \"file_ref\": \"sf_xyz789\" } ---"
     },
     {
       "direction": "client",
@@ -41,10 +41,10 @@
         "content": "Please summarize this document.",
         "role": "user",
         "meta": {
-          "attachments": ["att_xyz789"]
+          "attachments": [{ "file_ref": "sf_xyz789" }]
         }
       },
-      "note": "session_id: sess_abc123 — attachment_id embedded at payload.meta.attachments after system::opened"
+      "note": "session_id: sess_abc123 — canonical file_ref embedded at payload.meta.attachments after system::opened"
     },
     {
       "direction": "server",

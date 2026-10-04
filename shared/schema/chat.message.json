@@ -16,8 +16,21 @@
       "properties": {
         "attachments": {
           "type": "array",
-          "items": {},
-          "description": "Optional attachment reference objects or IDs from uploadAttachment()."
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["file_ref"],
+            "properties": {
+              "file_ref": {
+                "type": "string",
+                "pattern": "^sf_[A-Za-z0-9][A-Za-z0-9_-]*$"
+              },
+              "filename": { "type": "string" },
+              "content_type": { "type": "string" },
+              "size": { "type": "number", "minimum": 0 }
+            }
+          },
+          "description": "Canonical public session-file descriptors from uploadAttachment()."
         }
       },
       "description": "Optional user-message metadata"

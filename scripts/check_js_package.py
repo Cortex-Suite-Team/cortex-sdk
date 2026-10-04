@@ -117,6 +117,42 @@ console.log("JS smoke test: OK");
 
         run(["node", "smoke.mjs"], cwd=temp_dir)
 
+        type_smoke_path = temp_dir / "smoke.ts"
+        type_smoke_path.write_text(
+            """import { CortexClient } from "@cortex-suite/sdk";
+
+const client = new CortexClient({ apiKey: "test", onMessage: () => {} });
+client.onMessage(() => {});
+client.sendLogin({ login: "user", password: "secret" });
+client.replyEscalation({ escalationId: "esc", waitToken: "wait", action: "continue" });
+client.uploadFile(new Uint8Array());
+client.mintSessionFileDownloadUrl("sf_test");
+client.downloadFile("sf_test");
+client.listFiles();
+client.promoteFile("sf_test", { projectId: "project" });
+void client.sessionContext;
+void client.accessToken;
+void client.cpApiUrl;
+""",
+            encoding="utf-8",
+        )
+        run(
+            [
+                "node",
+                str(JS_DIR / "node_modules" / "typescript" / "bin" / "tsc"),
+                "--strict",
+                "--noEmit",
+                "--target",
+                "ES2022",
+                "--module",
+                "NodeNext",
+                "--moduleResolution",
+                "NodeNext",
+                str(type_smoke_path),
+            ],
+            cwd=temp_dir,
+        )
+
 
 def main() -> int:
     tarball: Path | None = None
@@ -127,7 +163,14 @@ def main() -> int:
         tarball = create_tarball()
         assert_tarball_contents(tarball)
         run_smoke_install(tarball)
-    except (RuntimeError, subprocess.CalledProcessError, json.JSONDecodeError) as exc:
+    except subprocess.CalledProcessError as exc:
+        if exc.stdout:
+            print(exc.stdout, file=sys.stderr)
+        if exc.stderr:
+            print(exc.stderr, file=sys.stderr)
+        print(str(exc), file=sys.stderr)
+        return 1
+    except (RuntimeError, json.JSONDecodeError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
     finally:

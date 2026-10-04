@@ -1,6 +1,6 @@
 """
 file_upload transcript:
-init → [HTTP upload → attachment_id] → chat::message with attachments → chat::answer
+init → [HTTP upload → file_ref] → chat::message with payload.meta.attachments → chat::answer
 """
 from __future__ import annotations
 
@@ -47,8 +47,8 @@ async def test_file_upload() -> None:
         await wait_for(lambda: client.session_id is not None)
 
         # Upload a file (bytes)
-        file_id = await client.upload_file(b"\x00\x01\x02\x03")
-        assert file_id == FIXED_ATTACHMENT_ID
+        file_ref = await client.upload_file(b"\x00\x01\x02\x03")
+        assert file_ref == FIXED_ATTACHMENT_ID
 
         attachment_id = await client.upload_attachment(b"\x00\x01\x02\x03")
         assert attachment_id == FIXED_ATTACHMENT_ID
@@ -58,13 +58,18 @@ async def test_file_upload() -> None:
 
         session_files = await client.list_files()
         assert session_files["total"] == 1
-        assert session_files["files"][0]["file_id"] == FIXED_ATTACHMENT_ID
+        assert session_files["files"][0]["file_ref"] == FIXED_ATTACHMENT_ID
+        assert "file_id" not in session_files["files"][0]
 
         project_files = await client.list_files(scope="project", project_id=42)
         assert project_files["total"] == 1
 
         promoted = await client.promote_file(attachment_id, project_id=42)
-        assert promoted["file_id"] == FIXED_ATTACHMENT_ID
+        assert promoted["file_ref"] == FIXED_ATTACHMENT_ID
+        assert "file_id" not in promoted
+
+        minted_url = await client.mint_session_file_download_url(attachment_id)
+        assert minted_url == f"{server.http_url}/download-token/mock"
 
         project_file_bytes = await client.download_file(
             attachment_id,
@@ -79,6 +84,13 @@ async def test_file_upload() -> None:
             attachments=[attachment_id],
         )
 
+        with pytest.raises(Exception) as exc_info:
+            await client.send_message(
+                "Do not leak internal identity.",
+                attachments=[{"file_ref": attachment_id, "file_id": "fi_private"}],  # type: ignore[list-item]
+            )
+        assert getattr(exc_info.value, "code", None) == "transport_protocol_violation"
+
         await wait_for(
             lambda: any(
                 m["type"] == "chat::answer" and m["payload"].get("answer_kind") == "final"
@@ -90,7 +102,8 @@ async def test_file_upload() -> None:
         # Verify chat::message payload includes attachment
         chat_msg = next(m for m in server.received if m["type"] == "chat::message")
         payload = chat_msg["payload"]
-        assert payload["meta"]["attachments"] == [FIXED_ATTACHMENT_ID]  # type: ignore[index]
+        assert payload["meta"]["attachments"] == [{"file_ref": FIXED_ATTACHMENT_ID}]  # type: ignore[index]
+        assert "attachments" not in payload
         assert payload["content"] == "Please summarize this document."  # type: ignore[index]
 
         answer = next(

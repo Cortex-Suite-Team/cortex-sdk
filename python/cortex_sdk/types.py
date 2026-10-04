@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Callable, Literal
 
-from typing_extensions import TypedDict, NotRequired
+from typing_extensions import TypedDict, NotRequired, Required
 
 
 class RuntimeBootstrap(TypedDict):
@@ -27,7 +27,7 @@ FileScope = Literal["session", "project"]
 
 
 class FileRef(TypedDict, total=False):
-    file_id: str
+    file_ref: Required[str]
     filename: str
     content_type: str
     size: int
@@ -45,12 +45,22 @@ class FileListResult(TypedDict):
 
 
 class FileReadyEvent(TypedDict, total=False):
-    file_id: str
+    file_ref: Required[str]
     filename: str
     content_type: str
     size: int
     scope_type: str
     scope_id: str
+
+
+class SessionFileAttachment(TypedDict):
+    file_ref: str
+    filename: NotRequired[str]
+    content_type: NotRequired[str]
+    size: NotRequired[int | float]
+
+
+SessionFileAttachmentInput = str | SessionFileAttachment
 
 
 class CortexMessage(TypedDict):

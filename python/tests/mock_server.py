@@ -24,7 +24,7 @@ from .schema_validation import SchemaViolation, validate_outbound_envelope
 FIXED_SESSION_ID = "sess_abc123"
 FIXED_ACCESS_TOKEN = "access_token_v1"
 FIXED_REFRESH_TOKEN = "refresh_token_v1"
-FIXED_ATTACHMENT_ID = "att_test123"
+FIXED_ATTACHMENT_ID = "sf_test123"
 
 _seq_lock = threading.Lock()
 _seq = 0
@@ -210,12 +210,16 @@ class _MockHTTPHandler(BaseHTTPRequestHandler):
                 }, status=status)
                 return
 
-            self._send_json({"attachment_id": FIXED_ATTACHMENT_ID})
+            self._send_json({"file_ref": FIXED_ATTACHMENT_ID})
+            return
+
+        if path == f"/sessions/{FIXED_SESSION_ID}/files/{FIXED_ATTACHMENT_ID}/download-token":
+            self._send_json({"download_url": "/download-token/mock"})
             return
 
         if path.startswith("/api/workspace/projects/") and path.endswith("/promote/"):
             self._send_json({
-                "file_id": FIXED_ATTACHMENT_ID,
+                "file_ref": FIXED_ATTACHMENT_ID,
                 "filename": "upload",
                 "scope_type": "persistent",
                 "scope_id": "42",
@@ -238,7 +242,7 @@ class _MockHTTPHandler(BaseHTTPRequestHandler):
         if path == f"/sessions/{FIXED_SESSION_ID}/files/":
             self._send_json({
                 "files": [{
-                    "file_id": FIXED_ATTACHMENT_ID,
+                    "file_ref": FIXED_ATTACHMENT_ID,
                     "filename": "upload",
                     "scope_type": "session",
                     "scope_id": FIXED_SESSION_ID,
@@ -253,7 +257,7 @@ class _MockHTTPHandler(BaseHTTPRequestHandler):
         if path.startswith("/api/workspace/projects/") and path.endswith("/files/"):
             self._send_json({
                 "files": [{
-                    "file_id": FIXED_ATTACHMENT_ID,
+                    "file_ref": FIXED_ATTACHMENT_ID,
                     "filename": "upload",
                     "scope_type": "persistent",
                     "scope_id": "42",

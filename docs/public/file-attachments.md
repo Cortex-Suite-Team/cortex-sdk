@@ -1,36 +1,36 @@
 # File Attachments
 
-Attaching a file to a message is a two-step process: upload the file first to get an `attachment_id`, then include that ID in your message.
+Attaching a file to a message is a two-step process: upload the file first to get a canonical `sf_...` `file_ref`, then include that reference in your message.
 
 ---
 
 ## Why two steps?
 
-File uploads happen over HTTP (a separate request), while messages are sent over WebSocket. The `attachment_id` returned from the upload is a stable reference you can include in any number of messages within the same session.
+File uploads happen over the SessionManager HTTP boundary, while messages are sent over WebSocket. The returned `file_ref` is safe for the public SDK; internal File Layer identities are never returned.
 
 ---
 
 ## Step 1: Upload the file
 
-Call `uploadAttachment()` / `upload_attachment()` with the file. It returns a string `attachment_id`.
+Call `uploadAttachment()` / `upload_attachment()` with the file. It returns a canonical `sf_...` `file_ref` string. Legacy-only `file_id` or `attachment_id` responses are rejected.
 
 ```js
 // JavaScript (Browser)
-const attachmentId = await client.uploadAttachment(fileObject); // File or Blob
+const fileRef = await client.uploadAttachment(fileObject); // File or Blob
 ```
 
 ```js
 // JavaScript (Node.js)
-const attachmentId = await client.uploadAttachment("./report.pdf"); // file path string
+const fileRef = await client.uploadAttachment("./report.pdf"); // file path string
 // or
-const attachmentId = await client.uploadAttachment(buffer); // Buffer or Uint8Array
+const fileRef = await client.uploadAttachment(buffer); // Buffer or Uint8Array
 ```
 
 ```python
 # Python
-attachment_id = await client.upload_attachment("./report.pdf")  # file path string
+file_ref = await client.upload_attachment("./report.pdf")  # file path string
 # or
-attachment_id = await client.upload_attachment(file_bytes)  # bytes
+file_ref = await client.upload_attachment(file_bytes)  # bytes
 ```
 
 ### Accepted input types
@@ -45,13 +45,13 @@ attachment_id = await client.upload_attachment(file_bytes)  # bytes
 
 ## Step 2: Send the message with the attachment
 
-Pass the `attachment_id` in the `attachments` array of `sendMessage()` / `send_message()`.
+Pass the `file_ref` in the `attachments` array of `sendMessage()` / `send_message()`. The SDK serializes it under `payload.meta.attachments` as `{ "file_ref": "sf_..." }`.
 
 ```js
 // JavaScript (Browser and Node.js)
 await client.sendMessage({
   content: "Please analyze this document.",
-  attachments: [attachmentId],
+  attachments: [fileRef],
 });
 ```
 
@@ -59,7 +59,7 @@ await client.sendMessage({
 # Python
 await client.send_message(
     content="Please analyze this document.",
-    attachments=[attachment_id],
+    attachments=[file_ref],
 )
 ```
 
@@ -85,12 +85,12 @@ const client = new CortexClient({
 await client.connect();
 
 // Step 1: upload
-const attachmentId = await client.uploadAttachment("./quarterly-report.pdf");
+const fileRef = await client.uploadAttachment("./quarterly-report.pdf");
 
 // Step 2: send
 await client.sendMessage({
   content: "Summarize the key findings from this report.",
-  attachments: [attachmentId],
+  attachments: [fileRef],
 });
 ```
 
@@ -111,12 +111,12 @@ async def main():
     await client.connect()
 
     # Step 1: upload
-    attachment_id = await client.upload_attachment("./quarterly-report.pdf")
+    file_ref = await client.upload_attachment("./quarterly-report.pdf")
 
     # Step 2: send
     await client.send_message(
         content="Summarize the key findings from this report.",
-        attachments=[attachment_id],
+        attachments=[file_ref],
     )
 
 asyncio.run(main())
@@ -185,10 +185,10 @@ try {
 from cortex_sdk import CortexClient, CortexError
 
 try:
-    attachment_id = await client.upload_attachment("./data.csv")
+    file_ref = await client.upload_attachment("./data.csv")
     await client.send_message(
         content="Analyze this data.",
-        attachments=[attachment_id],
+        attachments=[file_ref],
     )
 except CortexError as e:
     if e.code == "upload_too_large":
@@ -203,14 +203,14 @@ except CortexError as e:
 
 ## Orphaned uploads
 
-> **Note:** If the upload succeeds but the subsequent `sendMessage()` call fails, the file is uploaded on the server but not referenced by any message. This is harmless — the upload is not billed or retained indefinitely. If you need to send that file, retry `sendMessage()` with the **same `attachment_id`** that was returned from the successful upload. You do not need to upload the file again.
+> **Note:** If the upload succeeds but the subsequent `sendMessage()` call fails, retry `sendMessage()` with the same `file_ref`. You do not need to upload the file again.
 
 ```js
 // JavaScript (Browser and Node.js) — safe retry pattern
-let attachmentId;
+let fileRef;
 
 try {
-  attachmentId = await client.uploadAttachment("./file.pdf");
+  fileRef = await client.uploadAttachment("./file.pdf");
 } catch (err) {
   // Upload failed — handle the upload error first
   throw err;
@@ -221,7 +221,7 @@ for (let attempt = 0; attempt < 3; attempt++) {
   try {
     await client.sendMessage({
       content: "Analyze this.",
-      attachments: [attachmentId], // reuse the same ID
+      attachments: [fileRef], // reuse the same canonical reference
     });
     break;
   } catch (err) {

@@ -25,6 +25,7 @@ from .constants import (
     RECONNECT_BACKOFF,
 )
 from .errors import CortexError, make_error
+from .files import parse_public_file_list, parse_public_file_ref, require_session_file_ref
 from .liveness import LivenessMonitor
 from .session import SessionManager
 from .transport import Transport
@@ -37,6 +38,7 @@ from .types import (
     FileRef,
     FileScope,
     MessageCallback,
+    SessionFileAttachmentInput,
     SessionState,
 )
 from .upload import upload_file
@@ -174,7 +176,7 @@ class CortexClient:
         await self._transport.aclose()
 
     async def send_message(
-        self, content: str, attachments: list[str] | None = None
+        self, content: str, attachments: list[SessionFileAttachmentInput] | None = None
     ) -> None:
         await self._wait_for_open_channel()
         await self._session.send_chat_message(content, attachments)
@@ -214,9 +216,30 @@ class CortexClient:
     async def upload_attachment(self, file: str | bytes | BinaryIO) -> str:
         return await self.upload_file(file)
 
+    async def mint_session_file_download_url(
+        self,
+        file_ref: str,
+        *,
+        session_id: str | None = None,
+    ) -> str:
+        if not self._access_token:
+            raise make_error("auth_invalid", "Not connected")
+        canonical_file_ref = require_session_file_ref(file_ref)
+        effective_session_id = self._require_session_id(session_id)
+        base_url = self._require_runtime_http_base_url()
+        url = (
+            f"{base_url}/sessions/{quote(effective_session_id, safe='')}"
+            f"/files/{quote(canonical_file_ref, safe='')}/download-token"
+        )
+        body = await self._request_json(url, method="POST")
+        download_url = body.get("download_url")
+        if not isinstance(download_url, str) or not download_url:
+            raise make_error("file_operation_failed", "Download token response missing download_url")
+        return download_url if download_url.startswith("http") else f"{base_url}{download_url}"
+
     async def download_file(
         self,
-        file_id: str,
+        file_ref: str,
         *,
         scope: FileScope = "session",
         session_id: str | None = None,
@@ -224,11 +247,12 @@ class CortexClient:
     ) -> bytes:
         if not self._access_token:
             raise make_error("auth_invalid", "Not connected")
+        canonical_file_ref = require_session_file_ref(file_ref)
 
         if scope == "session":
             effective_session_id = self._require_session_id(session_id)
             base_url = self._require_runtime_http_base_url()
-            url = f"{base_url}/download/{quote(file_id, safe='')}"
+            url = f"{base_url}/download/{quote(canonical_file_ref, safe='')}"
             url = _with_query_params(url, {"session_id": effective_session_id})
         elif scope == "project":
             if project_id is None:
@@ -236,7 +260,7 @@ class CortexClient:
             base_url = self._require_cp_api_url()
             url = (
                 f"{base_url}/api/workspace/projects/{quote(str(project_id), safe='')}"
-                f"/files/{quote(file_id, safe='')}/download/"
+                f"/files/{quote(canonical_file_ref, safe='')}/download/"
             )
         else:
             raise make_error("file_operation_failed", f"Unsupported file scope: {scope}")
@@ -274,18 +298,19 @@ class CortexClient:
             raise make_error("file_operation_failed", f"Unsupported file scope: {scope}")
 
         body = await self._request_json(_with_query_params(url, query))
-        return body  # type: ignore[return-value]
+        return parse_public_file_list(body)
 
-    async def promote_file(self, file_id: str, *, project_id: str | int) -> FileRef:
+    async def promote_file(self, file_ref: str, *, project_id: str | int) -> FileRef:
         if not self._access_token:
             raise make_error("auth_invalid", "Not connected")
+        canonical_file_ref = require_session_file_ref(file_ref)
         base_url = self._require_cp_api_url()
         url = (
             f"{base_url}/api/workspace/projects/{quote(str(project_id), safe='')}"
-            f"/files/{quote(file_id, safe='')}/promote/"
+            f"/files/{quote(canonical_file_ref, safe='')}/promote/"
         )
         body = await self._request_json(url, method="POST")
-        return body  # type: ignore[return-value]
+        return parse_public_file_ref(body)
 
     async def stop(self) -> None:
         await self._wait_for_open_channel()

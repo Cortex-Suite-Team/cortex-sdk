@@ -72,7 +72,7 @@ export type AuthTokenResponse = NormalAuthTokenResponse | AuthRequiredTokenRespo
 export type FileScope = 'session' | 'project';
 
 export interface FileRef {
-  file_id?: string;
+  file_ref: string;
   filename?: string;
   content_type?: string;
   size?: number;
@@ -90,8 +90,17 @@ export interface FileListResult {
 }
 
 export interface FileReadyEvent extends FileRef {
-  file_id: string;
+  file_ref: string;
 }
+
+export interface SessionFileAttachment {
+  file_ref: string;
+  filename?: string;
+  content_type?: string;
+  size?: number;
+}
+
+export type SessionFileAttachmentInput = string | SessionFileAttachment;
 
 export interface UploadFileOptions {
   sessionId?: string;
@@ -160,7 +169,7 @@ export interface SessionContext {
 
 export interface SendMessageOptions {
   content: unknown;
-  attachments?: unknown[];
+  attachments?: SessionFileAttachmentInput[];
   meta?: Record<string, unknown>;
 }
 
@@ -228,4 +237,3 @@ export interface FormDataLike {
   append(name: string, value: Blob | string, filename?: string): void;
 }
 export type FormDataCtor = new () => FormDataLike;
-
