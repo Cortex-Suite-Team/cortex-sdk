@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: "24"
   PYTHON_VERSION: "3.12"
 
 jobs:
@@ -258,7 +258,9 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
-          registry-url: "https://registry.npmjs.org"
+
+      - name: Pin OIDC-capable npm
+        run: npm install --global npm@11.15.0
 
       - name: Download JS dist
         uses: actions/download-artifact@v6
@@ -268,8 +270,6 @@ jobs:
 
       - name: Publish JS package to npm
         working-directory: js
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public --ignore-scripts
 
   github-release:
