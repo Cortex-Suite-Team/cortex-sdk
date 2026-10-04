@@ -1,78 +1,42 @@
-import { createReadStream } from 'fs';
-import { basename } from 'path';
-import { Readable } from 'stream';
-import { makeError } from '../src/errors.js';
-import { requireSessionFileRef } from '../src/files.js';
-import type { UploadInput } from '../src/upload.js';
-import type { FetchFn } from '../src/types.js';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { basename, join } from 'node:path';
+import { pipeline } from 'node:stream/promises';
+import { Readable } from 'node:stream';
+import type { UploadSource } from '../src/file-transfer.js';
+import { createUploadSource, type UploadInput } from '../src/upload.js';
+import type { UploadFileOptions } from '../src/types.js';
 
-function resolveUploadFilename(file: UploadInput | Readable): string {
-  if (typeof file === 'string') {
-    const name = basename(file.trim());
-    return name || 'upload';
-  }
-  const name = typeof file === 'object' && file !== null
-    ? (file as { name?: unknown }).name
-    : undefined;
-  return typeof name === 'string' && name.trim() ? name : 'upload';
-}
+export async function createNodeUploadSource(file: UploadInput | Readable, options: UploadFileOptions = {}): Promise<UploadSource> {
+  if (typeof file !== 'string' && !(file instanceof Readable)) return createUploadSource(file, options);
+  if (typeof file === 'string') return pathSource(file, options, async () => {});
 
-export async function uploadFileNode(
-  file: UploadInput | Readable,
-  accessToken: string,
-  uploadUrl: string,
-  fetchFn: FetchFn,
-): Promise<string> {
-  // Normalize to Buffer
-  let buffer: Buffer;
-  if (typeof file === 'string') {
-    // file path
-    buffer = await streamToBuffer(createReadStream(file));
-  } else if (file instanceof Readable) {
-    buffer = await streamToBuffer(file);
-  } else if (file instanceof ArrayBuffer) {
-    buffer = Buffer.from(file);
-  } else if (typeof Blob !== 'undefined' && file instanceof Blob) {
-    buffer = Buffer.from(await file.arrayBuffer());
-  } else if (file instanceof Uint8Array) {
-    buffer = Buffer.from(file);
-  } else if (Buffer.isBuffer(file)) {
-    buffer = file;
-  } else {
-    throw makeError('upload_type_rejected', 'Unsupported Node upload input');
-  }
-
-  // Use Node's FormData (available in Node 18+)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const formData = new (globalThis as any).FormData();
-  const blob = new Blob([Uint8Array.from(buffer)]);
-  formData.append('file', blob, resolveUploadFilename(file));
-
-  const res = await fetchFn(uploadUrl, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}` },
-    body: formData,
-  });
-
-  if (!res.ok) {
-    if (res.status === 413) throw makeError('upload_too_large', 'File exceeds the allowed size limit');
-    if (res.status === 415) throw makeError('upload_type_rejected', 'File type not accepted');
-    throw makeError('upload_failed', `Upload failed with status ${res.status}`);
-  }
-
-  const body = await res.json() as Record<string, unknown>;
+  const directory = await mkdtemp(join(tmpdir(), 'cortex-sdk-upload-'));
+  const path = join(directory, 'payload');
   try {
-    return requireSessionFileRef(body['file_ref'], 'Upload response file_ref');
-  } catch {
-    throw makeError('upload_failed', 'Upload response must include a canonical sf_ file_ref');
+    await pipeline(file, createWriteStream(path));
+    return await pathSource(path, { ...options, filename: options.filename ?? 'upload' }, async () => {
+      await rm(directory, { recursive: true, force: true });
+    });
+  } catch (error) {
+    await rm(directory, { recursive: true, force: true });
+    throw error;
   }
 }
 
-function streamToBuffer(stream: Readable): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    stream.on('data', (chunk: Buffer) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
-    stream.on('end', () => resolve(Buffer.concat(chunks)));
-    stream.on('error', reject);
-  });
+async function pathSource(path: string, options: UploadFileOptions, cleanup: () => Promise<void>): Promise<UploadSource> {
+  const info = await stat(path);
+  return {
+    filename: options.filename ?? basename(path),
+    contentType: options.contentType ?? 'application/octet-stream',
+    size: info.size,
+    async *chunks(chunkBytes: number) {
+      for await (const chunk of createReadStream(path, { highWaterMark: chunkBytes })) {
+        const bytes = chunk as Buffer;
+        yield new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      }
+    },
+    cleanup,
+  };
 }

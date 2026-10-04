@@ -22,7 +22,8 @@ import { debugLog, readSdkDebugFlag } from './debug.js';
 import { createTransport } from './transport.js';
 import { createLiveness } from './liveness.js';
 import { createSession } from './session.js';
-import { uploadFile, type UploadInput } from './upload.js';
+import { createUploadSource, type UploadInput } from './upload.js';
+import { FileTransferManager, type UploadSource } from './file-transfer.js';
 import { parsePublicFileList, parsePublicFileRef, requireSessionFileRef } from './files.js';
 import type {
   CortexClientOptions,
@@ -32,7 +33,6 @@ import type {
   ReplyEscalationOptions,
   WebSocketCtor,
   FetchFn,
-  FormDataCtor,
   DownloadFileOptions,
   FileListResult,
   FileRef,
@@ -47,8 +47,6 @@ import type {
 export interface CortexClientPlatform {
   WS: WebSocketCtor;
   fetchFn: FetchFn;
-  FormDataClass: FormDataCtor;
-  uploadUrl: string;
 }
 
 function summarizeSendPayload(payload: {
@@ -71,8 +69,8 @@ function summarizeSendPayload(payload: {
 
 export class CortexClient {
   private readonly _options:
-    Required<Omit<CortexClientOptions, 'apiKey' | 'onMessage' | 'workerRef' | 'uploadUrl'>>
-    & Pick<CortexClientOptions, 'apiKey' | 'onMessage' | 'workerRef' | 'uploadUrl'>;
+    Required<Omit<CortexClientOptions, 'apiKey' | 'onMessage' | 'workerRef'>>
+    & Pick<CortexClientOptions, 'apiKey' | 'onMessage' | 'workerRef'>;
   private readonly _platform: CortexClientPlatform;
   private readonly _messageHandlers = new Set<(message: CortexMessage) => void>();
 
@@ -80,7 +78,6 @@ export class CortexClient {
   private _accessToken: string | null = null;
   private _refreshToken: string | null = null;
   private _wsUrl: string | null = null;
-  private _runtimeHttpBaseUrl: string | null = null;
   private _cpApiUrl: string | null = null;
   private _sessionMeta: Record<string, unknown> | null = null;
   private _sessionContext: SessionContext | null = null;
@@ -97,6 +94,7 @@ export class CortexClient {
 
   private readonly _transport;
   private readonly _session;
+  private readonly _fileTransfers;
   private _liveness: ReturnType<typeof createLiveness> | null = null;
   private _tokenRefreshTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly _pendingDelayCancels = new Set<() => void>();
@@ -124,8 +122,14 @@ export class CortexClient {
       onMessage: (msg) => this._handleSessionMessage(msg),
       onFatalError: (err) => this._handleSessionFatalError(err),
     });
+    this._fileTransfers = new FileTransferManager(this._transport, this._options.sendTimeout);
 
-    this._transport.onMessage = (data) => this._session.handleIncoming(data);
+    this._transport.onText = (data) => {
+      let message: CortexMessage;
+      try { message = JSON.parse(data) as CortexMessage; } catch { return; }
+      if (!this._fileTransfers.handleMessage(message)) this._session.handleMessage(message);
+    };
+    this._transport.onBinary = (data) => this._fileTransfers.handleBinary(data);
     this._transport.onClose = (code, reason) => this._handleClose(code, reason);
     this._transport.onError = () => { /* handled via onClose */ };
   }
@@ -167,6 +171,7 @@ export class CortexClient {
   async disconnect(): Promise<void> {
     this._disconnectRequested = true;
     this._stopBackgroundActivity();
+    this._fileTransfers.abortAll();
     this._resetConnectionRuntimeState();
     this._transport.close();
   }
@@ -198,15 +203,7 @@ export class CortexClient {
   }
 
   async uploadFile(file: UploadInput, options: UploadFileOptions = {}): Promise<string> {
-    if (!this._accessToken) throw makeError('auth_invalid', 'Not connected');
-    const sessionId = this._requireSessionId(options.sessionId);
-    return uploadFile(
-      file,
-      this._accessToken,
-      withQueryParams(this._resolveRuntimeUrl(this._platform.uploadUrl), { session_id: sessionId }),
-      this._platform.fetchFn,
-      this._platform.FormDataClass,
-    );
+    return this._uploadSessionSource(createUploadSource(file, options), options);
   }
 
   async uploadAttachment(file: UploadInput): Promise<string> {
@@ -217,12 +214,11 @@ export class CortexClient {
     if (!this._accessToken) throw makeError('auth_invalid', 'Not connected');
     const canonicalFileRef = requireSessionFileRef(fileRef);
     const scope = options.scope ?? 'session';
-    let url: string;
     if (scope === 'session') {
-      const sessionId = this._requireSessionId(options.sessionId);
-      url = `${this._requireRuntimeHttpBaseUrl()}/download/${encodeURIComponent(canonicalFileRef)}`;
-      url = withQueryParams(url, { session_id: sessionId });
-    } else if (scope === 'project') {
+      return this._fileTransfers.download(this._requireActiveSessionId(options.sessionId), canonicalFileRef);
+    }
+    let url: string;
+    if (scope === 'project') {
       if (options.projectId === undefined) {
         throw makeError('file_operation_failed', 'projectId is required for project file download');
       }
@@ -242,44 +238,17 @@ export class CortexClient {
     throw makeError('file_operation_failed', 'File API response does not expose bytes');
   }
 
-  /**
-   * Mint a short-lived, single-use download URL for a session file descriptor (sf_ file_ref).
-   *
-   * Returns an absolute, unauthenticated GET URL that a plain anchor navigation can download
-   * (no CORS, no auth header). Mint-on-click: call this each time the user clicks the link so the
-   * token is never stale.
-   */
-  async mintSessionFileDownloadUrl(
-    fileRef: string,
-    options: { sessionId?: string } = {},
-  ): Promise<string> {
-    if (!this._accessToken) throw makeError('auth_invalid', 'Not connected');
-    const canonicalFileRef = requireSessionFileRef(fileRef);
-    const sessionId = this._requireSessionId(options.sessionId);
-    const base = this._requireRuntimeHttpBaseUrl();
-    const mintUrl = `${base}/sessions/${encodeURIComponent(sessionId)}`
-      + `/files/${encodeURIComponent(canonicalFileRef)}/download-token`;
-    const body = await this._requestJson(mintUrl, 'POST');
-    const downloadUrl = body['download_url'];
-    if (typeof downloadUrl !== 'string' || !downloadUrl) {
-      throw makeError('file_operation_failed', 'Download token response missing download_url');
-    }
-    return downloadUrl.startsWith('http') ? downloadUrl : `${base}${downloadUrl}`;
-  }
-
   async listFiles(options: ListFilesOptions = {}): Promise<FileListResult> {
     if (!this._accessToken) throw makeError('auth_invalid', 'Not connected');
     const scope = options.scope ?? 'session';
+    if (scope === 'session') return this._fileTransfers.list(this._requireActiveSessionId(options.sessionId));
     const query = {
       limit: options.limit ?? 50,
       offset: options.offset ?? 0,
       include_trashed: String(options.includeTrashed ?? false),
     };
     let url: string;
-    if (scope === 'session') {
-      const sessionId = this._requireSessionId(options.sessionId);
-      url = `${this._requireRuntimeHttpBaseUrl()}/sessions/${encodeURIComponent(sessionId)}/files/`;
-    } else if (scope === 'project') {
+    if (scope === 'project') {
       if (options.projectId === undefined) {
         throw makeError('file_operation_failed', 'projectId is required for project file list');
       }
@@ -323,8 +292,6 @@ export class CortexClient {
     this._accessToken = authResponse.access_token;
     this._refreshToken = authResponse.refresh_token;
     this._wsUrl = authResponse.ws_url;
-    this._runtimeHttpBaseUrl = deriveRuntimeHttpBaseUrl(authResponse.ws_url);
-    this._runtimeHttpBaseUrl = deriveRuntimeHttpBaseUrlFromHttpUrl(this._platform.uploadUrl) ?? this._runtimeHttpBaseUrl;
     this._cpApiUrl = normalizeOptionalBaseUrl(authResponse.cp_api_url);
 
     if (authResponse.auth_required === true) {
@@ -432,6 +399,7 @@ export class CortexClient {
   }
 
   private _handleClose(code: number, reason: string) {
+    this._fileTransfers.abortAll();
     if (this._disconnectRequested) return;
     if (this._channelState === 'AUTH_FAILED') return;
     if (this._suppressNextReconnect) {
@@ -513,6 +481,7 @@ export class CortexClient {
   }
 
   private _handleSessionFatalError(err: Error) {
+    this._fileTransfers.abortAll();
     this._rejectSessionOpen(err);
     this._channelState = 'AUTH_FAILED';
     this._stopBackgroundActivity();
@@ -707,7 +676,6 @@ export class CortexClient {
     this._accessToken = null;
     this._refreshToken = null;
     this._wsUrl = null;
-    this._runtimeHttpBaseUrl = null;
     this._cpApiUrl = null;
   }
 
@@ -716,8 +684,8 @@ export class CortexClient {
     this._transport.close(code, reason);
   }
 
-  private _requireActiveSessionId(): string {
-    const effectiveSessionId = this.sessionId;
+  private _requireActiveSessionId(sessionId?: string): string {
+    const effectiveSessionId = sessionId ?? this.sessionId;
     if (!effectiveSessionId || !this._isSessionReady()) {
       throw makeError('session_not_ready', 'Session is not ready');
     }
@@ -732,13 +700,6 @@ export class CortexClient {
     return effectiveSessionId;
   }
 
-  private _requireRuntimeHttpBaseUrl(): string {
-    if (!this._runtimeHttpBaseUrl) {
-      throw makeError('file_api_unavailable', 'Runtime file API is unavailable');
-    }
-    return this._runtimeHttpBaseUrl;
-  }
-
   private _requireCpApiUrl(): string {
     if (!this._cpApiUrl) {
       throw makeError('file_api_unavailable', 'Control Plane file API is unavailable');
@@ -746,9 +707,16 @@ export class CortexClient {
     return this._cpApiUrl;
   }
 
-  private _resolveRuntimeUrl(pathOrUrl: string): string {
-    if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
-    return `${this._requireRuntimeHttpBaseUrl()}${pathOrUrl.startsWith('/') ? '' : '/'}${pathOrUrl}`;
+  protected async _uploadSessionSource(source: UploadSource, options: UploadFileOptions = {}): Promise<string> {
+    let delegated = false;
+    try {
+      if (!this._accessToken) throw makeError('auth_invalid', 'Not connected');
+      const sessionId = this._requireActiveSessionId(options.sessionId);
+      delegated = true;
+      return await this._fileTransfers.upload(sessionId, source, options.sha256);
+    } finally {
+      if (!delegated) await source.cleanup();
+    }
   }
 
   private async _requestJson(url: string, method = 'GET'): Promise<Record<string, unknown>> {
@@ -774,25 +742,6 @@ export class CortexClient {
 }
 
 const CANCELLED = Symbol('cancelled');
-
-function deriveRuntimeHttpBaseUrl(wsUrl: string | null): string | null {
-  if (!wsUrl) return null;
-  const parsed = new URL(wsUrl);
-  parsed.protocol = parsed.protocol === 'wss:' ? 'https:' : parsed.protocol === 'ws:' ? 'http:' : parsed.protocol;
-  parsed.pathname = '';
-  parsed.search = '';
-  parsed.hash = '';
-  return parsed.toString().replace(/\/$/, '');
-}
-
-function deriveRuntimeHttpBaseUrlFromHttpUrl(httpUrl: string): string | null {
-  if (!/^https?:\/\//i.test(httpUrl)) return null;
-  const parsed = new URL(httpUrl);
-  parsed.pathname = '';
-  parsed.search = '';
-  parsed.hash = '';
-  return parsed.toString().replace(/\/$/, '');
-}
 
 function normalizeOptionalBaseUrl(url: unknown): string | null {
   if (typeof url !== 'string' || url.trim() === '') return null;

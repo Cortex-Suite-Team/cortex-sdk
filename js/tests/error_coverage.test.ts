@@ -155,15 +155,15 @@ describe('error_coverage', () => {
     try {
       await client.connect();
       await waitFor(() => client.sessionId !== null);
-      const transport = (client as unknown as { _transport: { send: (message: unknown, timeoutMs: number) => Promise<void> } })._transport;
-      const originalSend = transport.send.bind(transport);
-      transport.send = () => Promise.reject(makeError('transport_send_timeout', 'Injected send timeout'));
+      const transport = (client as unknown as { _transport: { sendJson: (message: unknown, timeoutMs: number) => Promise<void> } })._transport;
+      const originalSend = transport.sendJson.bind(transport);
+      transport.sendJson = () => Promise.reject(makeError('transport_send_timeout', 'Injected send timeout'));
       await expect(client.sendMessage({ content: 'timeout' })).rejects.toMatchObject({
         code: 'transport_send_timeout',
         retryable: true,
         fatal: false,
       });
-      transport.send = originalSend;
+      transport.sendJson = originalSend;
     } finally {
       await client.disconnect();
       await server.close();
@@ -305,72 +305,72 @@ describe('error_coverage', () => {
     }
   });
 
-  it('covers upload_failed', async () => {
-    const meta = lookupError('upload_failed')!;
+  it('covers file_upload_failed', async () => {
+    const meta = lookupError('file_upload_failed')!;
     expect(meta.retryable).toBe(true);
     expect(meta.fatal).toBe(false);
 
     const server = await startMockServer({ autoInitEcho: true });
-    server.injectError('upload_failed', { phase: 'upload' });
+    server.injectError('file_upload_failed', { onMessageType: 'file::upload.prepare' });
     const client = makeClient(server, () => {});
 
     try {
       await client.connect();
       await waitFor(() => client.sessionId !== null);
       await expect(client.uploadAttachment(new Uint8Array([1, 2, 3]))).rejects.toMatchObject({
-        code: 'upload_failed',
+        code: 'file_upload_failed',
         retryable: true,
         fatal: false,
       });
-      expect(server.uploadCallCount).toBe(1);
+      expect(server.uploadCallCount).toBe(0);
     } finally {
       await client.disconnect();
       await server.close();
     }
   });
 
-  it('covers upload_too_large', async () => {
-    const meta = lookupError('upload_too_large')!;
+  it('covers file_too_large', async () => {
+    const meta = lookupError('file_too_large')!;
     expect(meta.retryable).toBe(false);
     expect(meta.fatal).toBe(false);
 
     const server = await startMockServer({ autoInitEcho: true });
-    server.injectError('upload_too_large', { phase: 'upload' });
+    server.injectError('file_too_large', { onMessageType: 'file::upload.prepare' });
     const client = makeClient(server, () => {});
 
     try {
       await client.connect();
       await waitFor(() => client.sessionId !== null);
       await expect(client.uploadAttachment(new Uint8Array([1, 2, 3]))).rejects.toMatchObject({
-        code: 'upload_too_large',
+        code: 'file_too_large',
         retryable: false,
         fatal: false,
       });
-      expect(server.uploadCallCount).toBe(1);
+      expect(server.uploadCallCount).toBe(0);
     } finally {
       await client.disconnect();
       await server.close();
     }
   });
 
-  it('covers upload_type_rejected', async () => {
-    const meta = lookupError('upload_type_rejected')!;
+  it('covers file_type_rejected', async () => {
+    const meta = lookupError('file_type_rejected')!;
     expect(meta.retryable).toBe(false);
     expect(meta.fatal).toBe(false);
 
     const server = await startMockServer({ autoInitEcho: true });
-    server.injectError('upload_type_rejected', { phase: 'upload' });
+    server.injectError('file_type_rejected', { onMessageType: 'file::upload.prepare' });
     const client = makeClient(server, () => {});
 
     try {
       await client.connect();
       await waitFor(() => client.sessionId !== null);
       await expect(client.uploadAttachment(new Uint8Array([1, 2, 3]))).rejects.toMatchObject({
-        code: 'upload_type_rejected',
+        code: 'file_type_rejected',
         retryable: false,
         fatal: false,
       });
-      expect(server.uploadCallCount).toBe(1);
+      expect(server.uploadCallCount).toBe(0);
     } finally {
       await client.disconnect();
       await server.close();

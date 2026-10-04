@@ -1,54 +1,79 @@
 from __future__ import annotations
 
-from typing import BinaryIO
-
-import httpx
-
-from .errors import make_error
-from .files import require_session_file_ref
-
-# Default upload endpoint — overridden via client's _upload_url for tests
-_DEFAULT_UPLOAD_URL = "/upload"
+import asyncio
+import os
+import tempfile
+from dataclasses import dataclass
+from pathlib import Path
+from typing import AsyncIterator, BinaryIO, Callable, Awaitable
 
 
-async def upload_file(
+@dataclass
+class UploadSource:
+    filename: str
+    content_type: str
+    size: int
+    chunks: Callable[[int], AsyncIterator[bytes]]
+    cleanup: Callable[[], Awaitable[None]]
+
+
+async def create_upload_source(
     file: str | bytes | BinaryIO,
-    access_token: str,
-    upload_url: str = _DEFAULT_UPLOAD_URL,
-) -> str:
-    """Upload a file and return the canonical session file_ref.
-
-    Args:
-        file: file path string, raw bytes, or a file-like (BinaryIO) object.
-        access_token: Bearer token for Authorization header.
-        upload_url: full URL of the upload endpoint.
-    """
+    *,
+    filename: str | None = None,
+    content_type: str | None = None,
+) -> UploadSource:
+    mime = content_type or "application/octet-stream"
     if isinstance(file, str):
-        with open(file, "rb") as fh:
-            data = fh.read()
-    elif isinstance(file, bytes):
-        data = file
-    else:
-        data = file.read()  # BinaryIO
+        path = Path(file)
+        size = os.stat(path).st_size
+        async def path_chunks(chunk_bytes: int) -> AsyncIterator[bytes]:
+            with path.open("rb") as stream:
+                while chunk := stream.read(chunk_bytes):
+                    yield chunk
+        return UploadSource(filename or path.name, mime, size, path_chunks, _noop)
 
-    files = {"file": ("upload", data, "application/octet-stream")}
+    if isinstance(file, bytes):
+        async def bytes_chunks(chunk_bytes: int) -> AsyncIterator[bytes]:
+            for offset in range(0, len(file), chunk_bytes):
+                yield file[offset:offset + chunk_bytes]
+        return UploadSource(filename or "upload", mime, len(file), bytes_chunks, _noop)
 
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            upload_url,
-            headers={"Authorization": f"Bearer {access_token}"},
-            files=files,
-        )
+    if file.seekable():
+        initial = file.tell()
+        file.seek(0, os.SEEK_END)
+        end = file.tell()
+        file.seek(initial)
+        async def seekable_chunks(chunk_bytes: int) -> AsyncIterator[bytes]:
+            file.seek(initial)
+            while chunk := file.read(chunk_bytes):
+                yield bytes(chunk)
+        async def restore() -> None:
+            file.seek(initial)
+        return UploadSource(filename or "upload", mime, end - initial, seekable_chunks, restore)
 
-    if not resp.is_success:
-        if resp.status_code == 413:
-            raise make_error("upload_too_large", "File exceeds the allowed size limit")
-        if resp.status_code == 415:
-            raise make_error("upload_type_rejected", "File type not accepted by the runtime")
-        raise make_error("upload_failed", f"Upload failed with status {resp.status_code}")
-
-    body = resp.json()
+    descriptor, temp_path = tempfile.mkstemp(prefix="cortex-sdk-upload-")
+    os.close(descriptor)
     try:
-        return require_session_file_ref(body.get("file_ref"), "Upload response file_ref")
-    except Exception as exc:
-        raise make_error("upload_failed", "Upload response must include a canonical sf_ file_ref") from exc
+        with open(temp_path, "wb") as target:
+            while chunk := file.read(64 * 1024):
+                target.write(chunk)
+        size = os.stat(temp_path).st_size
+    except Exception:
+        os.unlink(temp_path)
+        raise
+
+    async def temp_chunks(chunk_bytes: int) -> AsyncIterator[bytes]:
+        with open(temp_path, "rb") as stream:
+            while chunk := stream.read(chunk_bytes):
+                yield chunk
+    async def remove_temp() -> None:
+        try:
+            os.unlink(temp_path)
+        except FileNotFoundError:
+            pass
+    return UploadSource(filename or "upload", mime, size, temp_chunks, remove_temp)
+
+
+async def _noop() -> None:
+    return None

@@ -1,6 +1,6 @@
 /**
  * file_upload transcript test:
- * init → [HTTP upload → file_ref] → chat::message with payload.meta.attachments → chat::answer
+ * init → [WS upload → file_ref] → chat::message with payload.meta.attachments → chat::answer
  */
 import { startMockServer, FIXED_SESSION_ID, FIXED_ATTACHMENT_ID } from './mock-server.js';
 import { makeClient } from './test-client-factory.js';
@@ -54,6 +54,7 @@ describe('file_upload', () => {
       expect(sessionFiles.total).toBe(1);
       expect(sessionFiles.files[0]?.file_ref).toBe(FIXED_ATTACHMENT_ID);
       expect(sessionFiles.files[0]).not.toHaveProperty('file_id');
+      expect(server.uploadCallCount).toBe(0);
 
       const projectFiles = await client.listFiles({ scope: 'project', projectId: 42 });
       expect(projectFiles.total).toBe(1);
@@ -61,9 +62,6 @@ describe('file_upload', () => {
       const promoted = await client.promoteFile(attachmentId, { projectId: 42 });
       expect(promoted.file_ref).toBe(FIXED_ATTACHMENT_ID);
       expect(promoted).not.toHaveProperty('file_id');
-
-      const mintedUrl = await client.mintSessionFileDownloadUrl(attachmentId);
-      expect(mintedUrl).toBe(`${server.httpUrl}/download-token/mock`);
 
       const projectBytes = await client.downloadFile(attachmentId, {
         scope: 'project',

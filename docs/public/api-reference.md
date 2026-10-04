@@ -164,9 +164,9 @@ file_ref = await client.upload_attachment(file_bytes)       # bytes
 | JavaScript (Node.js) | File path `string`, `Buffer`, `Uint8Array`, `ReadableStream` |
 | Python | File path `str`, `bytes`, file-like object |
 
-**Returns:** `Promise<string>` / `str` — a canonical `sf_...` `file_ref`. Missing, malformed, or legacy-only upload responses fail with `upload_failed`.
+**Returns:** `Promise<string>` / `str` — a canonical `sf_...` `file_ref`. Missing, malformed, or identity-leaking completion payloads fail with `invalid_file_transfer`.
 
-**Throws:** `CortexError` with code `upload_failed`, `upload_too_large`, or `upload_type_rejected`.
+**Throws:** `CortexError` using the canonical `file_*` / `invalid_file_transfer` public codes documented in [Error Handling](./error-handling.md).
 
 ---
 

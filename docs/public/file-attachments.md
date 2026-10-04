@@ -6,7 +6,7 @@ Attaching a file to a message is a two-step process: upload the file first to ge
 
 ## Why two steps?
 
-File uploads happen over the SessionManager HTTP boundary, while messages are sent over WebSocket. The returned `file_ref` is safe for the public SDK; internal File Layer identities are never returned.
+Session uploads, downloads, and listing use the same SessionManager WebSocket as chat. Control messages are JSON text and file bytes use CFT1 binary frames. Project/workspace file operations remain on Control Plane HTTP. The returned `file_ref` is safe for the public SDK; internal File Layer identities are never returned.
 
 ---
 
@@ -158,9 +158,9 @@ await client.send_message(
 
 | Code | Retryable | Meaning | What to do |
 |---|---|---|---|
-| `upload_failed` | yes | Transient upload error | Retry the upload |
-| `upload_too_large` | no | File exceeds the allowed size limit | Reduce file size or split the file |
-| `upload_type_rejected` | no | File type is not accepted by the runtime | Check supported formats |
+| `file_upload_failed` | yes | Transient upload error | Retry the upload |
+| `file_too_large` | no | File exceeds the allowed size limit | Reduce file size or split the file |
+| `file_type_rejected` | no | File type is not accepted by the runtime | Check supported formats |
 
 ```js
 // JavaScript (Browser and Node.js)
@@ -170,11 +170,11 @@ try {
   const attachmentId = await client.uploadAttachment("./data.csv");
   await client.sendMessage({ content: "Analyze this data.", attachments: [attachmentId] });
 } catch (err) {
-  if (err.code === "upload_too_large") {
+  if (err.code === "file_too_large") {
     console.error("File is too large. Split it into smaller parts.");
-  } else if (err.code === "upload_type_rejected") {
+  } else if (err.code === "file_type_rejected") {
     console.error("This file type is not supported.");
-  } else if (err.code === "upload_failed") {
+  } else if (err.code === "file_upload_failed") {
     console.error("Upload failed — you can retry.");
   }
 }
@@ -191,11 +191,11 @@ try:
         attachments=[file_ref],
     )
 except CortexError as e:
-    if e.code == "upload_too_large":
+    if e.code == "file_too_large":
         print("File is too large. Split it into smaller parts.")
-    elif e.code == "upload_type_rejected":
+    elif e.code == "file_type_rejected":
         print("This file type is not supported.")
-    elif e.code == "upload_failed":
+    elif e.code == "file_upload_failed":
         print("Upload failed — you can retry.")
 ```
 

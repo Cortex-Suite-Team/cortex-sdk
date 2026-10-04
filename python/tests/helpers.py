@@ -28,7 +28,6 @@ def make_client(
         api_key="test-key",
         auth_url=server.http_url,
         on_message=lambda msg: received.append(msg),
-        _upload_url=server.upload_url,
         **defaults,
     )
 

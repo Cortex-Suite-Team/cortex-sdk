@@ -8,8 +8,6 @@ export interface CortexClientOptions {
    * @default "https://cortexsuite.app"
    */
   authUrl?: string;
-  /** Override the SessionManager upload endpoint. Relative paths resolve against the runtime origin. */
-  uploadUrl?: string;
   onMessage: (message: CortexMessage) => void;
   connectTimeout?: number;
   sessionOpenTimeout?: number;
@@ -106,6 +104,9 @@ export type SessionFileAttachmentInput = string | SessionFileAttachment;
 
 export interface UploadFileOptions {
   sessionId?: string;
+  filename?: string;
+  contentType?: string;
+  sha256?: string;
 }
 
 export interface DownloadFileOptions {
@@ -209,12 +210,14 @@ export type WebSocketCtor = new (url: string, protocols: string[]) => WebSocketL
 
 export interface WebSocketLike {
   readyState: number;
-  send(data: string): void;
+  bufferedAmount: number;
+  binaryType?: string;
+  send(data: string | ArrayBuffer | Uint8Array): void;
   close(code?: number, reason?: string): void;
   onopen: ((event: unknown) => void) | null;
   onclose: ((event: { code: number; reason: string | Buffer }) => void) | null;
   onerror: ((event: unknown) => void) | null;
-  onmessage: ((event: { data: string }) => void) | null;
+  onmessage: ((event: { data: string | ArrayBuffer | ArrayBufferView | Blob }) => void) | null;
 }
 
 /** Platform-specific fetch function passed in by each entry point. */

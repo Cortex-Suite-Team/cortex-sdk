@@ -126,7 +126,6 @@ client.onMessage(() => {});
 client.sendLogin({ login: "user", password: "secret" });
 client.replyEscalation({ escalationId: "esc", waitToken: "wait", action: "continue" });
 client.uploadFile(new Uint8Array());
-client.mintSessionFileDownloadUrl("sf_test");
 client.downloadFile("sf_test");
 client.listFiles();
 client.promoteFile("sf_test", { projectId: "project" });

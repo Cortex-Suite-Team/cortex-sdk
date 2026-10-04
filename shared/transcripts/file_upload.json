@@ -1,6 +1,6 @@
 {
   "name": "file_upload",
-  "description": "Client uploads a file over HTTP, receives a canonical file_ref, then sends a message with the attachment reference.",
+  "description": "Client uploads a file over the session WebSocket, receives a canonical file_ref, then sends a message with the attachment reference.",
   "steps": [
     {
       "direction": "client",
@@ -26,13 +26,31 @@
       "note": "session_id: sess_abc123, seq: 1 — canonical bootstrap ack from SessionManager"
     },
     {
-      "note": "--- OUT OF BAND: client calls uploadAttachment(file) ---"
+      "direction": "client",
+      "type": "file::upload.prepare",
+      "meta": { "client_msg_id": "cli_file_prepare_003" },
+      "payload": { "filename": "report.pdf", "content_type": "application/pdf", "size": 3 }
     },
     {
-      "note": "--- OUT OF BAND: SDK sends HTTP POST multipart/form-data to runtime upload endpoint with Authorization: Bearer <access_token> ---"
+      "direction": "server",
+      "type": "file::upload.ready",
+      "meta": { "client_msg_id": "cli_file_prepare_003" },
+      "payload": { "transfer_id": "ft_01010101010101010101010101010101", "chunk_bytes": 262144, "max_bytes": 52428800 }
     },
     {
-      "note": "--- OUT OF BAND: server responds { \"file_ref\": \"sf_xyz789\" } ---"
+      "note": "--- BINARY: CFT1 transfer ft_01010101010101010101010101010101, sequence 0, payload 3 bytes ---"
+    },
+    {
+      "direction": "client",
+      "type": "file::upload.commit",
+      "meta": { "client_msg_id": "cli_file_commit_003" },
+      "payload": { "transfer_id": "ft_01010101010101010101010101010101" }
+    },
+    {
+      "direction": "server",
+      "type": "file::upload.complete",
+      "meta": { "client_msg_id": "cli_file_commit_003" },
+      "payload": { "transfer_id": "ft_01010101010101010101010101010101", "file_ref": "sf_xyz789" }
     },
     {
       "direction": "client",

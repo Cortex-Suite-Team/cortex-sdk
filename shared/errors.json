@@ -11,14 +11,19 @@
     { "code": "session_terminal",             "class": "session",   "retryable": false, "fatal": true  },
     { "code": "resync_timeout",               "class": "resync",    "retryable": true,  "fatal": false },
     { "code": "replay_unavailable",           "class": "resync",    "retryable": true,  "fatal": false },
-    { "code": "upload_failed",                "class": "upload",    "retryable": true,  "fatal": false },
-    { "code": "upload_too_large",             "class": "upload",    "retryable": false, "fatal": false },
-    { "code": "upload_type_rejected",         "class": "upload",    "retryable": false, "fatal": false },
     { "code": "session_not_ready",            "class": "file",      "retryable": true,  "fatal": false },
     { "code": "file_api_unavailable",         "class": "file",      "retryable": false, "fatal": false },
     { "code": "file_not_found",               "class": "file",      "retryable": false, "fatal": false },
     { "code": "file_access_denied",           "class": "file",      "retryable": false, "fatal": false },
     { "code": "file_expired",                 "class": "file",      "retryable": false, "fatal": false },
-    { "code": "file_operation_failed",        "class": "file",      "retryable": true,  "fatal": false }
+    { "code": "file_operation_failed",        "class": "file",      "retryable": true,  "fatal": false },
+    { "code": "file_transport_unavailable",   "class": "file",      "retryable": true,  "fatal": false },
+    { "code": "file_too_large",               "class": "file",      "retryable": false, "fatal": false },
+    { "code": "file_type_rejected",           "class": "file",      "retryable": false, "fatal": false },
+    { "code": "invalid_file_transfer",        "class": "file",      "retryable": false, "fatal": false },
+    { "code": "file_transfer_interrupted",    "class": "file",      "retryable": true,  "fatal": false },
+    { "code": "file_upload_failed",           "class": "file",      "retryable": true,  "fatal": false },
+    { "code": "file_download_failed",         "class": "file",      "retryable": true,  "fatal": false },
+    { "code": "file_unavailable",             "class": "file",      "retryable": true,  "fatal": false }
   ]
 }

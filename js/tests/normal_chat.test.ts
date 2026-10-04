@@ -24,8 +24,6 @@ describe('normal_chat', () => {
     const platform: CortexClientPlatform = {
       WS: WebSocket as unknown as CortexClientPlatform['WS'],
       fetchFn: makeFetch(server.httpUrl),
-      FormDataClass,
-      uploadUrl: `${server.httpUrl}/upload`,
     };
 
     const client = new CortexClient(

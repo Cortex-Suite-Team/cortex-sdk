@@ -98,13 +98,18 @@ from cortex_sdk import CortexClient, CortexError
 | `resync_timeout` | yes | no | Resync attempt after reconnect timed out; SDK will retry |
 | `replay_unavailable` | yes | no | Runtime replay artifacts temporarily unavailable |
 
-### Upload errors
+### Session file errors
 
 | Code | Retryable | Fatal | Meaning |
 |---|---|---|---|
-| `upload_failed` | yes | no | Transient upload failure |
-| `upload_too_large` | no | no | File exceeds the allowed size limit |
-| `upload_type_rejected` | no | no | File type is not accepted by the runtime |
+| `file_transport_unavailable` | yes | no | Session file transport is temporarily unavailable |
+| `file_too_large` | no | no | File exceeds the allowed size limit |
+| `file_type_rejected` | no | no | File type is not accepted by the runtime |
+| `invalid_file_transfer` | no | no | File transfer protocol validation failed |
+| `file_transfer_interrupted` | yes | no | WebSocket closed during a transfer; start the operation again |
+| `file_upload_failed` | yes | no | Transient upload failure |
+| `file_download_failed` | yes | no | Transient download failure |
+| `file_unavailable` | yes | no | Requested session file is unavailable |
 
 ---
 
@@ -233,13 +238,13 @@ try {
   });
 } catch (err) {
   switch (err.code) {
-    case "upload_failed":
+    case "file_upload_failed":
       console.error("Upload failed — retry later.");
       break;
-    case "upload_too_large":
+    case "file_too_large":
       console.error("File too large. Maximum size exceeded.");
       break;
-    case "upload_type_rejected":
+    case "file_type_rejected":
       console.error("File type not supported.");
       break;
     default:
@@ -259,11 +264,11 @@ try:
         attachments=[file_ref],
     )
 except CortexError as e:
-    if e.code == "upload_failed":
+    if e.code == "file_upload_failed":
         print("Upload failed — retry later.")
-    elif e.code == "upload_too_large":
+    elif e.code == "file_too_large":
         print("File too large. Maximum size exceeded.")
-    elif e.code == "upload_type_rejected":
+    elif e.code == "file_type_rejected":
         print("File type not supported.")
     else:
         print("Unexpected error:", e.code, e.message)

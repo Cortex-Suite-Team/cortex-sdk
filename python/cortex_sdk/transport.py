@@ -22,7 +22,8 @@ class Transport:
         self._reader_task: asyncio.Task[None] | None = None
 
         # Callbacks set by the consumer (client.py)
-        self.on_message: Callable[[str], None] | None = None
+        self.on_text: Callable[[str], None] | None = None
+        self.on_binary: Callable[[bytes], None] | None = None
         self.on_close: Callable[[int, str], None] | None = None
         self.on_error: Callable[[Exception], None] | None = None
 
@@ -55,7 +56,7 @@ class Transport:
         self._ws = ws
         self._reader_task = asyncio.create_task(self._reader_loop())
 
-    async def send(self, message: dict[str, object]) -> None:
+    async def send_json(self, message: dict[str, object]) -> None:
         """Serialize and send a message. Raises transport_send_timeout on timeout."""
         ws = self._ws
         if ws is None:
@@ -67,6 +68,17 @@ class Transport:
             raise make_error("transport_send_timeout", "Send timed out") from exc
         except Exception as exc:
             raise make_error("transport_send_timeout", str(exc)) from exc
+
+    async def send_binary(self, data: bytes) -> None:
+        ws = self._ws
+        if ws is None:
+            raise make_error("file_transfer_interrupted", "No open connection")
+        try:
+            await asyncio.wait_for(ws.send(data), timeout=self._send_timeout)
+        except asyncio.TimeoutError as exc:
+            raise make_error("transport_send_timeout", "Binary send timed out") from exc
+        except Exception as exc:
+            raise make_error("file_transfer_interrupted", str(exc)) from exc
 
     def close(self, code: int = 1000, reason: str = "disconnect") -> None:
         """Synchronous close — cancels reader task and schedules WS close."""
@@ -109,9 +121,11 @@ class Transport:
             return
         try:
             async for raw in ws:
-                data = raw if isinstance(raw, str) else raw.decode()
-                if self.on_message:
-                    self.on_message(data)
+                if isinstance(raw, str):
+                    if self.on_text:
+                        self.on_text(raw)
+                elif self.on_binary:
+                    self.on_binary(bytes(raw))
         except websockets.exceptions.ConnectionClosed as exc:
             # Only fire on_close if we weren't already cleaned up
             if self._ws is None:

@@ -47,7 +47,7 @@ def test_constants_match_shared_artifact() -> None:
 def test_errors_match_shared_artifact() -> None:
     shared = json.loads((ROOT / "shared" / "errors.json").read_text(encoding="utf-8"))
 
-    assert len(shared["errors"]) == 20
+    assert len(shared["errors"]) == 25
     for entry in shared["errors"]:
         resolved = lookup_error(entry["code"])
         assert resolved is not None

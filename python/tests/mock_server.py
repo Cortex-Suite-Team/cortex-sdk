@@ -2,7 +2,7 @@
 Mock HTTP + WebSocket server for Python SDK tests.
 Simple, not production-grade.
 
-HTTP (threading-based):  /auth/token, /auth/refresh, /upload
+HTTP (threading-based):  /auth/token, /auth/refresh, Control Plane project files
 WS  (websockets-based):  /ws
 """
 from __future__ import annotations
@@ -13,7 +13,7 @@ import threading
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any, Callable, Coroutine, Set
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse
 
 import websockets
 import websockets.asyncio.server
@@ -66,12 +66,6 @@ def _make_envelope(
 def _default_http_status(code: str) -> int:
     if code in ("auth_invalid", "auth_refresh_failed"):
         return 401
-    if code == "upload_too_large":
-        return 413
-    if code == "upload_type_rejected":
-        return 415
-    if code == "upload_failed":
-        return 500
     return 400
 
 
@@ -197,26 +191,6 @@ class _MockHTTPHandler(BaseHTTPRequestHandler):
             self._send_json({"access_token": refreshed_access_token})
             return
 
-        if path == "/upload":
-            with self.__class__.state_lock:
-                self.__class__.state["upload_call_count"] = int(self.__class__.state["upload_call_count"]) + 1
-
-            injection = self._take_injection(lambda candidate: candidate.options.phase == "upload")
-            if injection:
-                status = injection.options.status or _default_http_status(injection.code)
-                self._send_json({
-                    "error": injection.code,
-                    "message": f"Injected {injection.code}",
-                }, status=status)
-                return
-
-            self._send_json({"file_ref": FIXED_ATTACHMENT_ID})
-            return
-
-        if path == f"/sessions/{FIXED_SESSION_ID}/files/{FIXED_ATTACHMENT_ID}/download-token":
-            self._send_json({"download_url": "/download-token/mock"})
-            return
-
         if path.startswith("/api/workspace/projects/") and path.endswith("/promote/"):
             self._send_json({
                 "file_ref": FIXED_ATTACHMENT_ID,
@@ -233,27 +207,6 @@ class _MockHTTPHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
         path = parsed.path
-        query = parse_qs(parsed.query)
-
-        if path.startswith("/download/"):
-            self._send_bytes(b"mock file bytes")
-            return
-
-        if path == f"/sessions/{FIXED_SESSION_ID}/files/":
-            self._send_json({
-                "files": [{
-                    "file_ref": FIXED_ATTACHMENT_ID,
-                    "filename": "upload",
-                    "scope_type": "session",
-                    "scope_id": FIXED_SESSION_ID,
-                    "status": "ready",
-                }],
-                "total": 1,
-                "limit": int(query.get("limit", ["50"])[0]),
-                "offset": int(query.get("offset", ["0"])[0]),
-            })
-            return
-
         if path.startswith("/api/workspace/projects/") and path.endswith("/files/"):
             self._send_json({
                 "files": [{
@@ -364,10 +317,6 @@ class MockServer:
     @property
     def auth_refresh_url(self) -> str:
         return f"{self.http_url}/auth/refresh"
-
-    @property
-    def upload_url(self) -> str:
-        return f"{self.http_url}/upload"
 
     @property
     def ws_url(self) -> str:
@@ -554,7 +503,9 @@ async def start_mock_server(
         srv.clients.add(ws)
         try:
             async for raw in ws:
-                data = raw if isinstance(raw, str) else raw.decode()
+                if isinstance(raw, bytes):
+                    continue
+                data = raw
                 msg: dict[str, object] = json.loads(data)
                 srv.received.append(msg)
                 msg_type = msg.get("type")
@@ -591,10 +542,10 @@ async def start_mock_server(
                     )
                 )
                 if injection is not None:
-                    await srv.send_to(ws, _make_envelope(
-                        "system::error",
-                        _make_system_error_payload(injection.code),
-                    ))
+                    injected = _make_envelope("system::error", _make_system_error_payload(injection.code))
+                    if msg_type and str(msg_type).startswith("file::"):
+                        injected["meta"] = msg.get("meta", {})
+                    await srv.send_to(ws, injected)
                     if injection.options.close_after_send:
                         await ws.close(
                             injection.options.close_code or 1011,
@@ -622,6 +573,39 @@ async def start_mock_server(
                             "server_ts": _ts(),
                         },
                         "ts": _ts(),
+                    })
+
+                meta = msg.get("meta", {})
+                assert isinstance(meta, dict)
+                correlation = {"client_msg_id": meta.get("client_msg_id")}
+                if msg_type == "file::upload.prepare":
+                    await srv.send_to(ws, {
+                        "type": "file::upload.ready", "schema": "1.0", "session_id": FIXED_SESSION_ID,
+                        "payload": {"transfer_id": "ft_01010101010101010101010101010101", "chunk_bytes": 2, "max_bytes": 52428800},
+                        "meta": correlation, "ts": _ts(),
+                    })
+                if msg_type == "file::upload.commit":
+                    await srv.send_to(ws, {
+                        "type": "file::upload.complete", "schema": "1.0", "session_id": FIXED_SESSION_ID,
+                        "payload": {"transfer_id": "ft_01010101010101010101010101010101", "file_ref": FIXED_ATTACHMENT_ID},
+                        "meta": correlation, "ts": _ts(),
+                    })
+                if msg_type == "file::download.prepare":
+                    transfer_id = "ft_02020202020202020202020202020202"
+                    content = b"mock file bytes"
+                    await srv.send_to(ws, {
+                        "type": "file::download.ready", "schema": "1.0", "session_id": FIXED_SESSION_ID,
+                        "payload": {"transfer_id": transfer_id, "filename": "upload", "content_type": "application/octet-stream", "size": len(content), "chunk_bytes": 262144},
+                        "meta": correlation, "ts": _ts(),
+                    })
+                    await asyncio.sleep(0)
+                    await ws.send(b"CFT1" + bytes.fromhex(transfer_id[3:]) + (0).to_bytes(4, "big") + content)
+                    await srv.send_to(ws, {"type": "file::download.complete", "schema": "1.0", "session_id": FIXED_SESSION_ID, "payload": {"transfer_id": transfer_id}, "ts": _ts()})
+                if msg_type == "file::list":
+                    await srv.send_to(ws, {
+                        "type": "file::list.result", "schema": "1.0", "session_id": FIXED_SESSION_ID,
+                        "payload": {"files": [{"file_ref": FIXED_ATTACHMENT_ID, "filename": "upload", "scope_type": "session", "scope_id": FIXED_SESSION_ID, "status": "ready"}], "total": 1},
+                        "meta": correlation, "ts": _ts(),
                     })
 
                 if msg_type == "chat::message" and options.auto_chat_answer and injection is None:

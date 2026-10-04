@@ -7,9 +7,11 @@ import type { RuntimeBootstrap, SessionState } from '../src/types.js';
 function makeTransport(): Transport {
   return {
     open: jest.fn(async () => undefined),
-    send: jest.fn(async () => undefined),
+    sendJson: jest.fn(async () => undefined),
+    sendBinary: jest.fn(async () => undefined),
     close: jest.fn(),
-    onMessage: null,
+    onText: null,
+    onBinary: null,
     onClose: null,
     onError: null,
   };

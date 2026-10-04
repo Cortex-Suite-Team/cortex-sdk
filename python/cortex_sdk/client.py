@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import secrets
 from typing import BinaryIO
 from urllib.parse import quote, urlencode, urlsplit, urlunsplit
@@ -26,6 +27,7 @@ from .constants import (
 )
 from .errors import CortexError, make_error
 from .files import parse_public_file_list, parse_public_file_ref, require_session_file_ref
+from .file_transfer import FileTransferManager
 from .liveness import LivenessMonitor
 from .session import SessionManager
 from .transport import Transport
@@ -41,7 +43,7 @@ from .types import (
     SessionFileAttachmentInput,
     SessionState,
 )
-from .upload import upload_file
+from .upload import create_upload_source
 
 
 class CortexClient:
@@ -69,8 +71,6 @@ class CortexClient:
         ping_interval: float = DEFAULT_PING_INTERVAL,
         pong_timeout: float = DEFAULT_PONG_TIMEOUT,
         stale_threshold: float = DEFAULT_STALE_THRESHOLD,
-        # Private test override — not part of the public API
-        _upload_url: str | None = None,
     ) -> None:
         self._api_key = api_key
         self._worker_ref = worker_ref
@@ -83,14 +83,11 @@ class CortexClient:
         self._pong_timeout = pong_timeout
         self._stale_threshold = stale_threshold
 
-        self._upload_url = _upload_url  # None → runtime-side upload URL heuristic
-
         # Internal state
         self._channel_state: ChannelState = "CLOSED"
         self._access_token: str | None = None
         self._refresh_token: str | None = None
         self._ws_url: str | None = None
-        self._runtime_http_base_url: str | None = None
         self._cp_api_url: str | None = None
         self._channel_id: str = f"ch_{secrets.token_hex(4)}"
         self._reconnect_attempt: int = 0
@@ -102,12 +99,14 @@ class CortexClient:
             on_message=self._dispatch_message,
             on_fatal_error=self._handle_fatal_error,
         )
+        self._file_transfers = FileTransferManager(self._transport, send_timeout)
         self._liveness: LivenessMonitor | None = None
         self._reconnect_task: asyncio.Task[None] | None = None
         self._token_refresh_task: asyncio.Task[None] | None = None
 
         # Wire transport callbacks
-        self._transport.on_message = self._session.handle_incoming
+        self._transport.on_text = self._handle_text
+        self._transport.on_binary = self._file_transfers.handle_binary
         self._transport.on_close = self._handle_close
         self._transport.on_error = None  # handled via on_close
 
@@ -140,15 +139,7 @@ class CortexClient:
         self._access_token = auth["access_token"]
         self._refresh_token = auth["refresh_token"]
         self._ws_url = auth["ws_url"]
-        self._runtime_http_base_url = _derive_runtime_http_base_url_from_ws_url(self._ws_url)
         self._cp_api_url = _normalize_optional_base_url(auth.get("cp_api_url"))
-        if self._upload_url is None:
-            self._upload_url = _derive_upload_url_from_ws_url(self._ws_url)
-        else:
-            self._runtime_http_base_url = (
-                _derive_runtime_http_base_url_from_http_url(self._upload_url)
-                or self._runtime_http_base_url
-            )
 
         await self._open_channel()
 
@@ -163,6 +154,7 @@ class CortexClient:
         self._disconnect_requested = True
         self._stop_liveness()
         self._stop_token_refresh()
+        self._file_transfers.abort_all()
 
         if self._reconnect_task and not self._reconnect_task.done():
             self._reconnect_task.cancel()
@@ -205,37 +197,18 @@ class CortexClient:
         file: str | bytes | BinaryIO,
         *,
         session_id: str | None = None,
+        filename: str | None = None,
+        content_type: str | None = None,
+        sha256: str | None = None,
     ) -> str:
         if not self._access_token:
             raise make_error("auth_invalid", "Not connected")
-        effective_session_id = self._require_session_id(session_id)
-        url = self._upload_url or "/upload"
-        url = _with_query_params(url, {"session_id": effective_session_id})
-        return await upload_file(file, self._access_token, upload_url=url)
+        effective_session_id = await self._require_active_session_id(session_id)
+        source = await create_upload_source(file, filename=filename, content_type=content_type)
+        return await self._file_transfers.upload(effective_session_id, source, sha256)
 
     async def upload_attachment(self, file: str | bytes | BinaryIO) -> str:
         return await self.upload_file(file)
-
-    async def mint_session_file_download_url(
-        self,
-        file_ref: str,
-        *,
-        session_id: str | None = None,
-    ) -> str:
-        if not self._access_token:
-            raise make_error("auth_invalid", "Not connected")
-        canonical_file_ref = require_session_file_ref(file_ref)
-        effective_session_id = self._require_session_id(session_id)
-        base_url = self._require_runtime_http_base_url()
-        url = (
-            f"{base_url}/sessions/{quote(effective_session_id, safe='')}"
-            f"/files/{quote(canonical_file_ref, safe='')}/download-token"
-        )
-        body = await self._request_json(url, method="POST")
-        download_url = body.get("download_url")
-        if not isinstance(download_url, str) or not download_url:
-            raise make_error("file_operation_failed", "Download token response missing download_url")
-        return download_url if download_url.startswith("http") else f"{base_url}{download_url}"
 
     async def download_file(
         self,
@@ -250,10 +223,8 @@ class CortexClient:
         canonical_file_ref = require_session_file_ref(file_ref)
 
         if scope == "session":
-            effective_session_id = self._require_session_id(session_id)
-            base_url = self._require_runtime_http_base_url()
-            url = f"{base_url}/download/{quote(canonical_file_ref, safe='')}"
-            url = _with_query_params(url, {"session_id": effective_session_id})
+            effective_session_id = await self._require_active_session_id(session_id)
+            return await self._file_transfers.download(effective_session_id, canonical_file_ref)
         elif scope == "project":
             if project_id is None:
                 raise make_error("file_operation_failed", "project_id is required for project file download")
@@ -286,9 +257,8 @@ class CortexClient:
             "include_trashed": str(include_trashed).lower(),
         }
         if scope == "session":
-            effective_session_id = self._require_session_id(session_id)
-            base_url = self._require_runtime_http_base_url()
-            url = f"{base_url}/sessions/{quote(effective_session_id, safe='')}/files/"
+            effective_session_id = await self._require_active_session_id(session_id)
+            return await self._file_transfers.list(effective_session_id)
         elif scope == "project":
             if project_id is None:
                 raise make_error("file_operation_failed", "project_id is required for project file list")
@@ -405,7 +375,16 @@ class CortexClient:
             return
         self._on_message_cb(msg)
 
+    def _handle_text(self, raw: str) -> None:
+        try:
+            message: CortexMessage = json.loads(raw)
+        except Exception:
+            return
+        if not self._file_transfers.handle_message(message):
+            self._session.handle_message(message)
+
     def _handle_fatal_error(self, err: CortexError) -> None:
+        self._file_transfers.abort_all()
         self._channel_state = "AUTH_FAILED"
         self._stop_liveness()
         self._stop_token_refresh()
@@ -429,6 +408,7 @@ class CortexClient:
         # on_close will trigger reconnect
 
     def _handle_close(self, code: int, reason: str) -> None:
+        self._file_transfers.abort_all()
         if self._disconnect_requested:
             return
         if self._channel_state == "AUTH_FAILED":
@@ -500,10 +480,9 @@ class CortexClient:
             raise make_error("session_not_ready", "Session is not ready")
         return effective_session_id
 
-    def _require_runtime_http_base_url(self) -> str:
-        if not self._runtime_http_base_url:
-            raise make_error("file_api_unavailable", "Runtime file API is unavailable")
-        return self._runtime_http_base_url
+    async def _require_active_session_id(self, session_id: str | None = None) -> str:
+        await self._wait_for_open_channel()
+        return self._require_session_id(session_id)
 
     def _require_cp_api_url(self) -> str:
         if not self._cp_api_url:
@@ -540,32 +519,6 @@ class CortexClient:
 def _now_iso() -> str:
     from datetime import datetime, timezone
     return datetime.now(timezone.utc).isoformat()
-
-
-def _derive_upload_url_from_ws_url(ws_url: str | None) -> str:
-    base_url = _derive_runtime_http_base_url_from_ws_url(ws_url)
-    if not base_url:
-        return "/upload"
-    return f"{base_url}/upload"
-
-
-def _derive_runtime_http_base_url_from_ws_url(ws_url: str | None) -> str:
-    if not ws_url:
-        return ""
-
-    parsed = urlsplit(ws_url)
-    scheme = parsed.scheme.lower()
-    http_scheme = "https" if scheme == "wss" else "http" if scheme == "ws" else scheme
-    return urlunsplit((http_scheme, parsed.netloc, "", "", "")).rstrip("/")
-
-
-def _derive_runtime_http_base_url_from_http_url(http_url: str | None) -> str:
-    if not http_url:
-        return ""
-    parsed = urlsplit(http_url)
-    if parsed.scheme.lower() not in {"http", "https"}:
-        return ""
-    return urlunsplit((parsed.scheme, parsed.netloc, "", "", "")).rstrip("/")
 
 
 def _normalize_optional_base_url(url: object) -> str | None:

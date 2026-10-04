@@ -9,7 +9,6 @@ import pytest
 
 from cortex_sdk import CortexClient
 from cortex_sdk import auth as auth_module
-from cortex_sdk.client import _derive_upload_url_from_ws_url
 from cortex_sdk.constants import AUTH_REFRESH_PATH, AUTH_TOKEN_PATH, DEFAULT_AUTH_URL
 
 from .helpers import wait_for
@@ -194,7 +193,6 @@ async def test_client_auth_url_is_public_and_refresh_uses_same_base() -> None:
         on_message=lambda msg: received.append(msg),
         ping_interval=60.0,
         stale_threshold=60.0,
-        _upload_url=server.upload_url,
     )
 
     try:
@@ -244,8 +242,3 @@ async def test_normalize_full_endpoint_url_to_base(
     url_called = requests[0][0]
     assert url_called == "https://auth.example.test/auth/token"
     assert "/auth/token/auth/token" not in url_called
-
-
-def test_upload_url_is_derived_from_runtime_ws_url_not_auth_url() -> None:
-    assert _derive_upload_url_from_ws_url("ws://runtime.example.test/ws") == "http://runtime.example.test/upload"
-    assert _derive_upload_url_from_ws_url("wss://runtime.example.test/ws") == "https://runtime.example.test/upload"

@@ -50,6 +50,7 @@ export interface SessionController {
   sendSystemTrigger(content: unknown, attachments: unknown[] | undefined): Promise<void>;
   sendTrigger(payload: Record<string, unknown>): Promise<void>;
   handleIncoming(data: string): void;
+  handleMessage(message: CortexMessage): void;
   get sessionId(): string | null;
   get sessionState(): SessionState;
   get lastSeq(): number;
@@ -103,7 +104,7 @@ export function createSession(
 
   function send(envelope: Record<string, unknown>): Promise<void> {
     if (!_transport) return Promise.reject(new Error('No transport'));
-    return _transport.send(envelope, _sendTimeoutMs);
+    return _transport.sendJson(envelope, _sendTimeoutMs);
   }
 
   function reset(): void {
@@ -308,11 +309,11 @@ export function createSession(
 
     handleIncoming(data: string) {
       let msg: CortexMessage;
-      try {
-        msg = JSON.parse(data) as CortexMessage;
-      } catch {
-        return; // malformed frame — ignore
-      }
+      try { msg = JSON.parse(data) as CortexMessage; } catch { return; }
+      this.handleMessage(msg);
+    },
+
+    handleMessage(msg: CortexMessage) {
 
       if (!_opened) {
         if (msg.type === 'system::opened') {

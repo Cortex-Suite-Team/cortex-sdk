@@ -94,7 +94,7 @@ import { CortexClient } from "@cortex-suite/sdk/browser";
 ### Platform notes
 
 - Uses the browser's native `WebSocket` API
-- Uses the Fetch API for authentication and file upload
+- Uses Fetch for authentication and WebSocket binary frames for session files
 - No Node.js-specific APIs; safe to use in any modern browser
 - Ships as ESM only
 - Compatible with Chrome 90+, Firefox 90+, Safari 15+, and equivalents
@@ -128,7 +128,7 @@ import { CortexClient } from "@cortex-suite/sdk/node";
 ### Platform notes
 
 - Uses the `ws` package for WebSocket (bundled — no peer dependency needed)
-- Uses native `fetch` and `FormData` globals (Node.js 18+ required)
+- Uses native `fetch` for authentication and Control Plane calls (Node.js 18+ required)
 - Ships as ESM only
 - **Requires Node.js 18 or later**
 
@@ -162,7 +162,7 @@ from cortex_sdk import CortexClient, CortexError  # include CortexError for erro
 
 - Requires Python 3.10 or later
 - Uses `websockets` for WebSocket (installed as a dependency)
-- Uses `httpx` for authentication and file upload (installed as a dependency)
+- Uses `httpx` for authentication and Control Plane calls (installed as a dependency)
 - All public methods are `async` — must be `await`ed
 - No synchronous interface is provided
 - Payload types are annotated with `TypedDict` for static analysis with mypy/pyright

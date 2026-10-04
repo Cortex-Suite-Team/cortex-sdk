@@ -9,7 +9,7 @@ import type { MockServer } from './mock-server.js';
 
 export function makeFetch(baseUrl: string): FetchFn {
   return async (url, init) => {
-    // Prepend baseUrl for relative paths such as /upload.
+    // Prepend baseUrl for relative auth or Control Plane paths.
     const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
     const res = await fetch(fullUrl, init as globalThis.RequestInit);
     return {
@@ -43,8 +43,6 @@ export function makeTestClient(
     {
       WS: WebSocket as unknown as CortexClientPlatform['WS'],
       fetchFn: makeFetch(server.httpUrl),
-      FormDataClass: NodeFormData,
-      uploadUrl: `${server.httpUrl}/upload`,
     },
   );
 }

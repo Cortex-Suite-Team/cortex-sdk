@@ -8,7 +8,7 @@ from cortex_sdk.session import SessionManager
 
 
 class DummyTransport:
-    async def send(self, envelope: dict[str, object]) -> None:
+    async def send_json(self, envelope: dict[str, object]) -> None:
         return None
 
 

@@ -13,14 +13,9 @@ export function makeClient(
   onMessage: (msg: CortexMessage) => void,
   overrides: Partial<CortexClientOptions> = {},
 ): CortexClient {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const FormDataClass = (globalThis as any).FormData;
-
   const platform: CortexClientPlatform = {
     WS: WebSocket as unknown as CortexClientPlatform['WS'],
     fetchFn: makeFetch(server.httpUrl),
-    FormDataClass,
-    uploadUrl: `${server.httpUrl}/upload`,
   };
 
   return new CortexClient(

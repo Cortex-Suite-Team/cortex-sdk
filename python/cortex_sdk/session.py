@@ -96,7 +96,7 @@ class SessionManager:
     async def _send(self, envelope: dict[str, object]) -> None:
         if self._transport is None:
             raise make_error("transport_send_timeout", "No transport configured")
-        await self._transport.send(envelope)
+        await self._transport.send_json(envelope)
 
     async def send_init(self, bootstrap: RuntimeBootstrap) -> None:
         """Send system::init — intentionally omits session_id."""
@@ -153,6 +153,9 @@ class SessionManager:
         except Exception:
             return  # malformed frame — ignore
 
+        self.handle_message(msg)
+
+    def handle_message(self, msg: CortexMessage) -> None:
         # Learn session_id from first server message
         if not self._session_id and msg.get("session_id"):
             self._session_id = msg["session_id"]

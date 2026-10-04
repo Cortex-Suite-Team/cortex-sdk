@@ -2,10 +2,8 @@ import { Readable } from 'stream';
 import { WebSocket } from 'ws';
 import { CortexClient, type CortexClientPlatform } from '../src/client.js';
 import type { UploadInput } from '../src/upload.js';
-import { uploadFileNode } from './upload-node.js';
-import type { CortexClientOptions, FetchFn, FormDataCtor } from '../src/types.js';
-
-const UPLOAD_URL = '/upload';
+import { createNodeUploadSource } from './upload-node.js';
+import type { CortexClientOptions, FetchFn, UploadFileOptions } from '../src/types.js';
 
 // Node 18+ has global fetch; fall back to a minimal shim for older versions
 const nodeFetch: FetchFn = (url, init) => {
@@ -13,16 +11,10 @@ const nodeFetch: FetchFn = (url, init) => {
   return (globalThis as any).fetch(url, init);
 };
 
-// Node-compatible FormData (global in Node 18+)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const NodeFormData: FormDataCtor = (globalThis as any).FormData;
-
-function makePlatform(options: CortexClientOptions): CortexClientPlatform {
+function makePlatform(_options: CortexClientOptions): CortexClientPlatform {
   return {
     WS: WebSocket as unknown as CortexClientPlatform['WS'],
     fetchFn: nodeFetch,
-    FormDataClass: NodeFormData,
-    uploadUrl: options.uploadUrl ?? UPLOAD_URL,
   };
 }
 
@@ -32,25 +24,8 @@ export class CortexNodeClient extends CortexClient {
   }
 
   /** Node-specific override: accepts browser-safe inputs plus file paths and Readable streams */
-  async uploadFile(file: UploadInput | Readable, options: { sessionId?: string } = {}): Promise<string> {
-    if (!this['_accessToken']) {
-      const { makeError } = await import('../src/errors.js');
-      throw makeError('auth_invalid', 'Not connected');
-    }
-    const sessionId = options.sessionId ?? this.sessionId;
-    if (!sessionId) {
-      const { makeError } = await import('../src/errors.js');
-      throw makeError('session_not_ready', 'Session is not ready');
-    }
-    const runtimeBaseUrl = this['_requireRuntimeHttpBaseUrl']() as string;
-    const uploadUrl = new URL(this['_platform'].uploadUrl, `${runtimeBaseUrl}/`);
-    uploadUrl.searchParams.set('session_id', sessionId);
-    return uploadFileNode(
-      file,
-      this['_accessToken'] as string,
-      uploadUrl.toString(),
-      nodeFetch,
-    );
+  async uploadFile(file: UploadInput | Readable, options: UploadFileOptions = {}): Promise<string> {
+    return this._uploadSessionSource(await createNodeUploadSource(file, options), options);
   }
 
   async uploadAttachment(file: UploadInput | Readable): Promise<string> {

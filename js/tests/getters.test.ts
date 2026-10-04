@@ -25,8 +25,6 @@ describe('getters', () => {
       {
         WS: WebSocket as unknown as CortexClientPlatform['WS'],
         fetchFn: () => Promise.reject(new Error('not connected')),
-        FormDataClass: (globalThis as Record<string, unknown>)['FormData'] as CortexClientPlatform['FormDataClass'],
-        uploadUrl: 'http://localhost:9999/upload',
       },
     );
 

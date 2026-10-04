@@ -172,19 +172,19 @@ async def test_transport_send_timeout() -> None:
     try:
         await client.connect()
         await wait_for(lambda: client.session_id is not None)
-        original_send = client._transport.send  # type: ignore[attr-defined]
+        original_send = client._transport.send_json  # type: ignore[attr-defined]
 
         async def failing_send(message: dict[str, object]) -> None:
             raise make_error("transport_send_timeout", "Injected send timeout")
 
-        client._transport.send = failing_send  # type: ignore[method-assign]
+        client._transport.send_json = failing_send  # type: ignore[method-assign]
         with pytest.raises(Exception) as exc_info:
             await client.send_message("timeout")
         err = exc_info.value
         assert getattr(err, "code", None) == "transport_send_timeout"
         assert getattr(err, "retryable", None) is True
         assert getattr(err, "fatal", None) is False
-        client._transport.send = original_send  # type: ignore[method-assign]
+        client._transport.send_json = original_send  # type: ignore[method-assign]
     finally:
         await client.disconnect()
         await server.close()
@@ -310,12 +310,12 @@ async def test_replay_unavailable() -> None:
 
 
 @pytest.mark.asyncio
-async def test_upload_failed() -> None:
-    meta = lookup_error("upload_failed")
+async def test_file_upload_failed() -> None:
+    meta = lookup_error("file_upload_failed")
     assert meta is not None and meta.retryable is True and meta.fatal is False
 
     server = await start_mock_server(auto_init_echo=True)
-    server.inject_error("upload_failed", phase="upload")
+    server.inject_error("file_upload_failed", on_message_type="file::upload.prepare")
     client = make_client(server, [])
 
     try:
@@ -324,22 +324,22 @@ async def test_upload_failed() -> None:
         with pytest.raises(Exception) as exc_info:
             await client.upload_attachment(b"\x00\x01")
         err = exc_info.value
-        assert getattr(err, "code", None) == "upload_failed"
+        assert getattr(err, "code", None) == "file_upload_failed"
         assert getattr(err, "retryable", None) is True
         assert getattr(err, "fatal", None) is False
-        assert server.upload_call_count == 1
+        assert server.upload_call_count == 0
     finally:
         await client.disconnect()
         await server.close()
 
 
 @pytest.mark.asyncio
-async def test_upload_too_large() -> None:
-    meta = lookup_error("upload_too_large")
+async def test_file_too_large() -> None:
+    meta = lookup_error("file_too_large")
     assert meta is not None and meta.retryable is False and meta.fatal is False
 
     server = await start_mock_server(auto_init_echo=True)
-    server.inject_error("upload_too_large", phase="upload")
+    server.inject_error("file_too_large", on_message_type="file::upload.prepare")
     client = make_client(server, [])
 
     try:
@@ -348,22 +348,22 @@ async def test_upload_too_large() -> None:
         with pytest.raises(Exception) as exc_info:
             await client.upload_attachment(b"\x00\x01")
         err = exc_info.value
-        assert getattr(err, "code", None) == "upload_too_large"
+        assert getattr(err, "code", None) == "file_too_large"
         assert getattr(err, "retryable", None) is False
         assert getattr(err, "fatal", None) is False
-        assert server.upload_call_count == 1
+        assert server.upload_call_count == 0
     finally:
         await client.disconnect()
         await server.close()
 
 
 @pytest.mark.asyncio
-async def test_upload_type_rejected() -> None:
-    meta = lookup_error("upload_type_rejected")
+async def test_file_type_rejected() -> None:
+    meta = lookup_error("file_type_rejected")
     assert meta is not None and meta.retryable is False and meta.fatal is False
 
     server = await start_mock_server(auto_init_echo=True)
-    server.inject_error("upload_type_rejected", phase="upload")
+    server.inject_error("file_type_rejected", on_message_type="file::upload.prepare")
     client = make_client(server, [])
 
     try:
@@ -372,10 +372,10 @@ async def test_upload_type_rejected() -> None:
         with pytest.raises(Exception) as exc_info:
             await client.upload_attachment(b"\x00\x01")
         err = exc_info.value
-        assert getattr(err, "code", None) == "upload_type_rejected"
+        assert getattr(err, "code", None) == "file_type_rejected"
         assert getattr(err, "retryable", None) is False
         assert getattr(err, "fatal", None) is False
-        assert server.upload_call_count == 1
+        assert server.upload_call_count == 0
     finally:
         await client.disconnect()
         await server.close()

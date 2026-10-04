@@ -62,7 +62,7 @@ describe('shared artifact parity', () => {
       errors: Array<{ code: string; retryable: boolean; fatal: boolean }>;
     };
 
-    expect(shared.errors).toHaveLength(20);
+    expect(shared.errors).toHaveLength(25);
     for (const entry of shared.errors) {
       expect(lookupError(entry.code)).toEqual({
         code: entry.code,

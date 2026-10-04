@@ -3,16 +3,19 @@ import type { FetchFn, FormDataCtor, Response, WebSocketLike } from '../src/type
 
 class FakeWebSocket implements WebSocketLike {
   readyState = 1;
+  bufferedAmount = 0;
+  binaryType = 'arraybuffer';
   onopen: ((event: unknown) => void) | null = null;
   onclose: ((event: { code: number; reason: string | Buffer }) => void) | null = null;
   onerror: ((event: unknown) => void) | null = null;
-  onmessage: ((event: { data: string }) => void) | null = null;
+  onmessage: WebSocketLike['onmessage'] = null;
 
   constructor(_url: string, _protocols: string[]) {
     setTimeout(() => this.onopen?.({}), 0);
   }
 
-  send(data: string): void {
+  send(data: string | ArrayBuffer | Uint8Array): void {
+    if (typeof data !== 'string') return;
     const parsed = JSON.parse(data) as { type?: string; payload?: Record<string, unknown>; meta?: Record<string, unknown> };
     if (parsed.type === 'system::init') {
       const payload = parsed.payload ?? {};
@@ -64,13 +67,9 @@ function makeJwt(expSecondsFromNow: number): string {
 }
 
 function makePlatform(fetchFn: FetchFn): CortexClientPlatform {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const FormDataClass = (globalThis as any).FormData as FormDataCtor;
   return {
     WS: FakeWebSocket as unknown as CortexClientPlatform['WS'],
     fetchFn,
-    FormDataClass,
-    uploadUrl: '/upload',
   };
 }
 

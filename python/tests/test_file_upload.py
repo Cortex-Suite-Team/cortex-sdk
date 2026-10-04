@@ -1,6 +1,6 @@
 """
 file_upload transcript:
-init → [HTTP upload → file_ref] → chat::message with payload.meta.attachments → chat::answer
+init → [WS upload → file_ref] → chat::message with payload.meta.attachments → chat::answer
 """
 from __future__ import annotations
 
@@ -60,6 +60,7 @@ async def test_file_upload() -> None:
         assert session_files["total"] == 1
         assert session_files["files"][0]["file_ref"] == FIXED_ATTACHMENT_ID
         assert "file_id" not in session_files["files"][0]
+        assert server.upload_call_count == 0
 
         project_files = await client.list_files(scope="project", project_id=42)
         assert project_files["total"] == 1
@@ -67,9 +68,6 @@ async def test_file_upload() -> None:
         promoted = await client.promote_file(attachment_id, project_id=42)
         assert promoted["file_ref"] == FIXED_ATTACHMENT_ID
         assert "file_id" not in promoted
-
-        minted_url = await client.mint_session_file_download_url(attachment_id)
-        assert minted_url == f"{server.http_url}/download-token/mock"
 
         project_file_bytes = await client.download_file(
             attachment_id,

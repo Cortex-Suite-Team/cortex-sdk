@@ -88,7 +88,7 @@ class LivenessMonitor:
                     envelope["session_id"] = session_id
 
                 try:
-                    await self._transport.send(envelope)
+                    await self._transport.send_json(envelope)
                 except Exception:
                     pass  # send errors are handled via transport on_close
 

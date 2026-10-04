@@ -1,0 +1,107 @@
+{
+  "version": "session-file-ws-v1",
+  "provenance": {
+    "sdk_issue": "Cortex-Suite-Team/cortex-sdk#1",
+    "runtime_edge_issue": "TimurKady/cortex-runtime-edge#4",
+    "io_node_ref": "930e74c23f0e537e27937463e4f866a20d6b03f4"
+  },
+  "cft1": {
+    "magic_ascii": "CFT1",
+    "magic_hex": "43465431",
+    "header_bytes": 24,
+    "transfer_id_pattern": "^ft_[0-9a-f]{32}$",
+    "sequence_encoding": "uint32-big-endian",
+    "default_chunk_bytes": 262144,
+    "vectors": [
+      {
+        "name": "abc-sequence-zero",
+        "valid": true,
+        "transfer_id": "ft_01010101010101010101010101010101",
+        "sequence": 0,
+        "payload_hex": "616263",
+        "frame_hex": "434654310101010101010101010101010101010100000000616263"
+      },
+      {
+        "name": "empty-payload",
+        "valid": true,
+        "transfer_id": "ft_000102030405060708090a0b0c0d0e0f",
+        "sequence": 0,
+        "payload_hex": "",
+        "frame_hex": "43465431000102030405060708090a0b0c0d0e0f00000000"
+      },
+      {
+        "name": "non-zero-sequence",
+        "valid": true,
+        "transfer_id": "ft_ffffffffffffffffffffffffffffffff",
+        "sequence": 7,
+        "payload_hex": "00ff",
+        "frame_hex": "43465431ffffffffffffffffffffffffffffffff0000000700ff"
+      },
+      {
+        "name": "maximum-sequence",
+        "valid": true,
+        "transfer_id": "ft_101112131415161718191a1b1c1d1e1f",
+        "sequence": 4294967295,
+        "payload_hex": "7f",
+        "frame_hex": "43465431101112131415161718191a1b1c1d1e1fffffffff7f"
+      },
+      {
+        "name": "invalid-magic",
+        "valid": false,
+        "frame_hex": "424144210101010101010101010101010101010100000000616263",
+        "error": "invalid_magic"
+      },
+      {
+        "name": "short-header",
+        "valid": false,
+        "frame_hex": "43465431010101010101010101010101010101",
+        "error": "short_header"
+      },
+      {
+        "name": "invalid-transfer-id",
+        "valid": false,
+        "transfer_id": "ft_ABC",
+        "sequence": 0,
+        "payload_hex": "",
+        "error": "invalid_transfer_id"
+      }
+    ]
+  },
+  "messages": {
+    "upload_prepare": { "request": "file::upload.prepare", "success": "file::upload.ready", "request_fields": ["filename", "content_type", "size"], "optional_request_fields": ["sha256"], "success_fields": ["transfer_id", "chunk_bytes", "max_bytes"] },
+    "upload_commit": { "request": "file::upload.commit", "success": "file::upload.complete", "request_fields": ["transfer_id"], "success_fields": ["transfer_id", "file_ref"] },
+    "download_prepare": { "request": "file::download.prepare", "success": "file::download.ready", "request_fields": ["file_ref"], "success_fields": ["transfer_id", "filename", "content_type", "size", "chunk_bytes"] },
+    "download_complete": { "request": null, "success": "file::download.complete", "success_fields": ["transfer_id"] },
+    "list": { "request": "file::list", "success": "file::list.result", "request_fields": [], "success_fields": ["files", "total"] },
+    "failure": { "request": null, "success": "system::error" }
+  },
+  "correlation": {
+    "request_field": "meta.client_msg_id",
+    "success_echo_field": "meta.client_msg_id",
+    "active_transfer_field": "payload.transfer_id",
+    "binary_transfer_field": "CFT1.transfer_id",
+    "fifo_allowed": false
+  },
+  "public_error_codes": [
+    "file_transport_unavailable",
+    "file_too_large",
+    "file_type_rejected",
+    "invalid_file_transfer",
+    "file_transfer_interrupted",
+    "file_upload_failed",
+    "file_download_failed",
+    "file_unavailable"
+  ],
+  "forbidden_public_fields": [
+    "file_id",
+    "snapshot_id",
+    "blob_ref",
+    "storage_key",
+    "ticket",
+    "upload_ticket",
+    "delivery_ticket",
+    "file_link_secret",
+    "instance_id"
+  ],
+  "forbidden_public_value_prefixes": ["fi_"]
+}

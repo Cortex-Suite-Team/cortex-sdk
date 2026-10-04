@@ -126,12 +126,6 @@ function defaultHttpStatus(code: string): number {
     case 'auth_invalid':
     case 'auth_refresh_failed':
       return 401;
-    case 'upload_too_large':
-      return 413;
-    case 'upload_type_rejected':
-      return 415;
-    case 'upload_failed':
-      return 500;
     default:
       return 400;
   }
@@ -189,8 +183,11 @@ export function startMockServer(options: MockServerOptions = {}): Promise<MockSe
       ws: WebSocket,
       code: string,
       injectOptions: ErrorInjectionOptions,
+      meta?: Record<string, unknown>,
     ) {
-      server.sendTo(ws, makeEnvelope('system::error', makeSystemErrorPayload(code)));
+      const envelope = makeEnvelope('system::error', makeSystemErrorPayload(code));
+      if (meta) envelope.meta = meta;
+      server.sendTo(ws, envelope);
       if (injectOptions.closeAfterSend) {
         setTimeout(() => {
           if (ws.readyState === WebSocket.OPEN) {
@@ -304,51 +301,6 @@ export function startMockServer(options: MockServerOptions = {}): Promise<MockSe
           return;
         }
 
-        if (req.method === 'POST' && url === '/upload') {
-          uploadCallCount++;
-          const injection = takeInjection((candidate) => candidate.options.phase === 'upload');
-          if (injection) {
-            const status = injection.options.status ?? defaultHttpStatus(injection.code);
-            res.writeHead(status, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
-              error: injection.code,
-              message: `Injected ${injection.code}`,
-            }));
-            return;
-          }
-
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ file_ref: FIXED_ATTACHMENT_ID }));
-          return;
-        }
-
-        if (req.method === 'POST' && url === `/sessions/${FIXED_SESSION_ID}/files/${FIXED_ATTACHMENT_ID}/download-token`) {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ download_url: '/download-token/mock' }));
-          return;
-        }
-
-        if (req.method === 'GET' && url.startsWith('/download/')) {
-          res.writeHead(200, { 'Content-Type': 'application/octet-stream' });
-          res.end(Buffer.from('mock file bytes'));
-          return;
-        }
-
-        if (req.method === 'GET' && url === `/sessions/${FIXED_SESSION_ID}/files/`) {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({
-            files: [{
-              file_ref: FIXED_ATTACHMENT_ID,
-              filename: 'upload',
-              scope_type: 'session',
-              scope_id: FIXED_SESSION_ID,
-              status: 'ready',
-            }],
-            total: 1,
-          }));
-          return;
-        }
-
         if (req.method === 'GET' && url.startsWith('/api/workspace/projects/') && url.endsWith('/files/')) {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({
@@ -413,7 +365,11 @@ export function startMockServer(options: MockServerOptions = {}): Promise<MockSe
       clients.add(ws);
       ws.on('close', () => clients.delete(ws));
 
-      ws.on('message', (data: Buffer) => {
+      ws.on('message', (data: Buffer, isBinary: boolean) => {
+        if (isBinary) {
+          receivedFrames.push(data.toString('hex'));
+          return;
+        }
         receivedFrames.push(data.toString());
         let parsed: Record<string, unknown>;
         try {
@@ -456,7 +412,14 @@ export function startMockServer(options: MockServerOptions = {}): Promise<MockSe
         });
 
         if (matchedInjection) {
-          maybeSendInjectedError(ws, matchedInjection.code, matchedInjection.options);
+          maybeSendInjectedError(
+            ws,
+            matchedInjection.code,
+            matchedInjection.options,
+            typeof messageType === 'string' && messageType.startsWith('file::')
+              ? parsed.meta as Record<string, unknown>
+              : undefined,
+          );
           if (matchedInjection.options.closeAfterSend) {
             return;
           }
@@ -480,6 +443,48 @@ export function startMockServer(options: MockServerOptions = {}): Promise<MockSe
               server_ts: ts(),
             },
             ts: ts(),
+          });
+        }
+
+        const meta = parsed.meta as Record<string, unknown> | undefined;
+        const correlation = { client_msg_id: meta?.['client_msg_id'] };
+        if (messageType === 'file::upload.prepare') {
+          server.sendTo(ws, {
+            type: 'file::upload.ready', schema: '1.0', session_id: FIXED_SESSION_ID,
+            payload: { transfer_id: 'ft_01010101010101010101010101010101', chunk_bytes: 2, max_bytes: 52428800 },
+            meta: correlation, ts: ts(),
+          });
+        }
+        if (messageType === 'file::upload.commit') {
+          server.sendTo(ws, {
+            type: 'file::upload.complete', schema: '1.0', session_id: FIXED_SESSION_ID,
+            payload: { transfer_id: 'ft_01010101010101010101010101010101', file_ref: FIXED_ATTACHMENT_ID },
+            meta: correlation, ts: ts(),
+          });
+        }
+        if (messageType === 'file::download.prepare') {
+          const transferId = 'ft_02020202020202020202020202020202';
+          const bytes = Buffer.from('mock file bytes');
+          server.sendTo(ws, {
+            type: 'file::download.ready', schema: '1.0', session_id: FIXED_SESSION_ID,
+            payload: { transfer_id: transferId, filename: 'upload', content_type: 'application/octet-stream', size: bytes.length, chunk_bytes: 262144 },
+            meta: correlation, ts: ts(),
+          });
+          setTimeout(() => {
+            if (ws.readyState !== WebSocket.OPEN) return;
+            const header = Buffer.alloc(24);
+            header.write('CFT1', 0, 'ascii');
+            Buffer.from(transferId.slice(3), 'hex').copy(header, 4);
+            header.writeUInt32BE(0, 20);
+            ws.send(Buffer.concat([header, bytes]), { binary: true });
+            server.sendTo(ws, { type: 'file::download.complete', schema: '1.0', session_id: FIXED_SESSION_ID, payload: { transfer_id: transferId }, ts: ts() });
+          }, 0);
+        }
+        if (messageType === 'file::list') {
+          server.sendTo(ws, {
+            type: 'file::list.result', schema: '1.0', session_id: FIXED_SESSION_ID,
+            payload: { files: [{ file_ref: FIXED_ATTACHMENT_ID, filename: 'upload', scope_type: 'session', scope_id: FIXED_SESSION_ID, status: 'ready' }], total: 1 },
+            meta: correlation, ts: ts(),
           });
         }
 

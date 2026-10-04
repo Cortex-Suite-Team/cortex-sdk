@@ -54,7 +54,7 @@ export function createLiveness(
     };
     if (sessionId) envelope['session_id'] = sessionId;
 
-    transport.send(envelope, 5000).catch(() => {
+    transport.sendJson(envelope, 5000).catch(() => {
       // send failure is handled by transport's onClose
     });
 
