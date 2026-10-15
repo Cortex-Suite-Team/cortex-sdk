@@ -1,6 +1,6 @@
 import { SCHEMA_VERSION } from './constants.js';
 import { makeError } from './errors.js';
-import { parsePublicFileList, requireSessionFileRef } from './files.js';
+import { parseSessionFileList, requireSessionFileRef } from './files.js';
 import type { FileListResult, CortexMessage } from './types.js';
 import type { Transport } from './transport.js';
 
@@ -125,7 +125,7 @@ export class FileTransferManager {
   async list(sessionId: string): Promise<FileListResult> {
     const result = await this.request(sessionId, 'file::list', 'file::list.result', {});
     assertSafePublicControl(result.payload);
-    return parsePublicFileList(result.payload);
+    return parseSessionFileList(result.payload);
   }
 
   handleMessage(message: CortexMessage): boolean {

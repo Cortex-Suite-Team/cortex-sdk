@@ -35,5 +35,10 @@ export type {
   PromoteFileOptions,
   SessionFileAttachment,
   SessionFileAttachmentInput,
+  SessionFileDescriptor,
+  SessionFileOwnerRole,
+  SessionFileDirection,
+  SessionFileState,
+  SessionFileMessageRefKind,
 } from '../src/types.js';
 export { CortexError } from '../src/errors.js';

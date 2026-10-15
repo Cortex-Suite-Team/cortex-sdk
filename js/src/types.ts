@@ -71,12 +71,42 @@ export type AuthTokenResponse = NormalAuthTokenResponse | AuthRequiredTokenRespo
 
 export type FileScope = 'session' | 'project';
 
+export type SessionFileOwnerRole = 'user' | 'assistant' | 'operator' | 'system';
+export type SessionFileDirection = 'inbound' | 'outbound' | 'internal';
+export type SessionFileState = 'available' | 'expired' | 'deleted' | 'quarantined';
+export type SessionFileMessageRefKind = 'client_msg_id' | 'turn';
+
+/**
+ * Public session-file descriptor, as carried in message `payload.meta.attachments`
+ * and `file::list` results. `message_ref` is the owning message's `client_msg_id`
+ * (user uploads) or turn id (assistant-generated files). Download with
+ * `downloadFile(file_ref)`.
+ */
+export interface SessionFileDescriptor {
+  file_ref: string;
+  filename: string;
+  content_type: string;
+  size: number;
+  owner_role: SessionFileOwnerRole;
+  direction: SessionFileDirection;
+  state: SessionFileState;
+  message_ref?: string;
+  message_ref_kind?: SessionFileMessageRefKind;
+}
+
 export interface FileRef {
   file_ref: string;
   filename?: string;
   content_type?: string;
   size?: number;
+  owner_role?: SessionFileOwnerRole;
+  direction?: SessionFileDirection;
+  state?: SessionFileState;
+  message_ref?: string;
+  message_ref_kind?: SessionFileMessageRefKind;
+  /** Project (Control Plane) files only. */
   scope_type?: string;
+  /** Project (Control Plane) files only. */
   scope_id?: string;
   status?: string;
   created_at?: string;

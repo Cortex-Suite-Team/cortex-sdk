@@ -40,6 +40,8 @@ export interface MockServerOptions {
   refreshToken?: string;
   /** When true, /auth/token returns auth_required:true (no runtime_bootstrap). */
   authRequired?: boolean;
+  /** Built-in single-file fakes for file::* requests (default true). */
+  autoFileTransport?: boolean;
 }
 
 export interface MockServer {
@@ -448,21 +450,22 @@ export function startMockServer(options: MockServerOptions = {}): Promise<MockSe
 
         const meta = parsed.meta as Record<string, unknown> | undefined;
         const correlation = { client_msg_id: meta?.['client_msg_id'] };
-        if (messageType === 'file::upload.prepare') {
+        const autoFiles = options.autoFileTransport !== false;
+        if (autoFiles && messageType === 'file::upload.prepare') {
           server.sendTo(ws, {
             type: 'file::upload.ready', schema: '1.0', session_id: FIXED_SESSION_ID,
             payload: { transfer_id: 'ft_01010101010101010101010101010101', chunk_bytes: 2, max_bytes: 52428800 },
             meta: correlation, ts: ts(),
           });
         }
-        if (messageType === 'file::upload.commit') {
+        if (autoFiles && messageType === 'file::upload.commit') {
           server.sendTo(ws, {
             type: 'file::upload.complete', schema: '1.0', session_id: FIXED_SESSION_ID,
             payload: { transfer_id: 'ft_01010101010101010101010101010101', file_ref: FIXED_ATTACHMENT_ID },
             meta: correlation, ts: ts(),
           });
         }
-        if (messageType === 'file::download.prepare') {
+        if (autoFiles && messageType === 'file::download.prepare') {
           const transferId = 'ft_02020202020202020202020202020202';
           const bytes = Buffer.from('mock file bytes');
           server.sendTo(ws, {
@@ -480,10 +483,10 @@ export function startMockServer(options: MockServerOptions = {}): Promise<MockSe
             server.sendTo(ws, { type: 'file::download.complete', schema: '1.0', session_id: FIXED_SESSION_ID, payload: { transfer_id: transferId }, ts: ts() });
           }, 0);
         }
-        if (messageType === 'file::list') {
+        if (autoFiles && messageType === 'file::list') {
           server.sendTo(ws, {
             type: 'file::list.result', schema: '1.0', session_id: FIXED_SESSION_ID,
-            payload: { files: [{ file_ref: FIXED_ATTACHMENT_ID, filename: 'upload', scope_type: 'session', scope_id: FIXED_SESSION_ID, status: 'ready' }], total: 1 },
+            payload: { files: [{ file_ref: FIXED_ATTACHMENT_ID, filename: 'upload', content_type: 'application/octet-stream', size: 15, owner_role: 'user', direction: 'inbound', state: 'available' }], total: 1 },
             meta: correlation, ts: ts(),
           });
         }

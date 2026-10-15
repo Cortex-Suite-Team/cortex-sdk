@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cortex.local/sdk/schema/file.list.result.json",
+  "title": "file::list.result Payload",
+  "description": "Session files visible to the session owner, oldest first: user uploads and assistant-generated files. Same public descriptor projection as message meta.attachments.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["files", "total"],
+  "properties": {
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file_ref", "filename", "content_type", "size", "owner_role", "direction", "state"],
+        "properties": {
+          "file_ref": {
+            "type": "string",
+            "pattern": "^sf_[A-Za-z0-9][A-Za-z0-9_-]*$"
+          },
+          "filename": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "content_type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "owner_role": {
+            "type": "string",
+            "enum": ["user", "assistant", "operator", "system"]
+          },
+          "direction": {
+            "type": "string",
+            "enum": ["inbound", "outbound", "internal"]
+          },
+          "state": {
+            "type": "string",
+            "enum": ["available", "expired", "deleted", "quarantined"]
+          },
+          "message_ref": {
+            "type": "string",
+            "pattern": "^(?!fi_|sn_)."
+          },
+          "message_ref_kind": {
+            "type": "string",
+            "enum": ["client_msg_id", "turn"]
+          }
+        }
+      }
+    },
+    "total": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

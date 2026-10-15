@@ -91,7 +91,7 @@ async def test_file_upload() -> None:
                 "Do not leak internal identity.",
                 attachments=[{"file_ref": attachment_id, "file_id": "fi_private"}],  # type: ignore[list-item]
             )
-        assert getattr(exc_info.value, "code", None) == "transport_protocol_violation"
+        assert getattr(exc_info.value, "code", None) == "invalid_attachment"
 
         await wait_for(
             lambda: any(

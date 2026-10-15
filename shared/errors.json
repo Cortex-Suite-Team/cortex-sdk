@@ -24,6 +24,8 @@
     { "code": "file_transfer_interrupted",    "class": "file",      "retryable": true,  "fatal": false },
     { "code": "file_upload_failed",           "class": "file",      "retryable": true,  "fatal": false },
     { "code": "file_download_failed",         "class": "file",      "retryable": true,  "fatal": false },
-    { "code": "file_unavailable",             "class": "file",      "retryable": true,  "fatal": false }
+    { "code": "file_unavailable",             "class": "file",      "retryable": true,  "fatal": false },
+    { "code": "too_many_attachments",         "class": "file",      "retryable": false, "fatal": false },
+    { "code": "invalid_attachment",           "class": "file",      "retryable": false, "fatal": false }
   ]
 }

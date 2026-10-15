@@ -36,4 +36,6 @@ GENERATED_ERROR_CATALOG: tuple[GeneratedErrorEntry, ...] = (
     GeneratedErrorEntry('file_upload_failed', retryable=True, fatal=False),
     GeneratedErrorEntry('file_download_failed', retryable=True, fatal=False),
     GeneratedErrorEntry('file_unavailable', retryable=True, fatal=False),
+    GeneratedErrorEntry('too_many_attachments', retryable=False, fatal=False),
+    GeneratedErrorEntry('invalid_attachment', retryable=False, fatal=False),
 )

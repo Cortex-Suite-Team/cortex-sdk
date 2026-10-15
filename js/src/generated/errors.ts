@@ -31,4 +31,6 @@ export const GENERATED_ERROR_CATALOG: readonly GeneratedErrorEntry[] = [
   { code: 'file_upload_failed', retryable: true, fatal: false },
   { code: 'file_download_failed', retryable: true, fatal: false },
   { code: 'file_unavailable', retryable: true, fatal: false },
+  { code: 'too_many_attachments', retryable: false, fatal: false },
+  { code: 'invalid_attachment', retryable: false, fatal: false },
 ];

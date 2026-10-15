@@ -22,11 +22,67 @@
       "type": "string"
     },
     "meta": {
-      "type": "object"
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "attachments": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["file_ref", "filename", "content_type", "size", "owner_role", "direction", "state"],
+            "properties": {
+              "file_ref": {
+                "type": "string",
+                "pattern": "^sf_[A-Za-z0-9][A-Za-z0-9_-]*$"
+              },
+              "filename": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "content_type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "size": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "owner_role": {
+                "type": "string",
+                "const": "user"
+              },
+              "direction": {
+                "type": "string",
+                "const": "inbound"
+              },
+              "state": {
+                "type": "string",
+                "enum": ["available", "expired", "deleted", "quarantined"]
+              },
+              "message_ref": {
+                "type": "string",
+                "pattern": "^(?!fi_|sn_)."
+              },
+              "message_ref_kind": {
+                "type": "string",
+                "const": "client_msg_id"
+              }
+            }
+          },
+          "description": "Ordered public descriptors of the files the user attached to the echoed message (message_ref = meta.client_msg_id)."
+        }
+      }
     }
   },
   "anyOf": [
-    { "required": ["content"] },
-    { "required": ["message"] }
+    {
+      "required": ["content"]
+    },
+    {
+      "required": ["message"]
+    }
   ]
 }

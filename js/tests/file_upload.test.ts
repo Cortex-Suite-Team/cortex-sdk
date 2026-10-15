@@ -82,7 +82,7 @@ describe('file_upload', () => {
       await expect(client.sendMessage({
         content: 'Do not leak internal identity.',
         attachments: [{ file_ref: attachmentId, file_id: 'fi_private' } as never],
-      })).rejects.toMatchObject({ code: 'transport_protocol_violation' });
+      })).rejects.toMatchObject({ code: 'invalid_attachment', retryable: false });
 
       await waitFor(() => received.some(m => m.type === 'chat::answer' && m.payload['answer_kind'] === 'final'), 3000);
 

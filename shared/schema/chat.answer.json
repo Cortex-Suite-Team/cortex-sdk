@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://cortex.local/sdk/schema/chat.answer.json",
   "title": "chat::answer Payload",
-  "description": "Final assistant answer from the runtime. Terminates a turn. The answer_kind field remains for compatibility; active outbound mapping uses answer_kind=final.",
+  "description": "Final assistant answer from the runtime. Terminates a turn. The answer_kind field remains for compatibility; active outbound mapping uses answer_kind=final. Generated files arrive as public session-file descriptors in meta.attachments, bound to this answer's turn (message_ref = turn_id, message_ref_kind = turn).",
   "type": "object",
   "additionalProperties": false,
   "required": ["content", "role", "answer_kind", "turn_id"],
@@ -23,6 +23,62 @@
     "turn_id": {
       "type": "string",
       "description": "Turn correlation id; matches turn_id of preceding chat::partial messages if any"
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "attachments": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["file_ref", "filename", "content_type", "size", "owner_role", "direction", "state"],
+            "properties": {
+              "file_ref": {
+                "type": "string",
+                "pattern": "^sf_[A-Za-z0-9][A-Za-z0-9_-]*$"
+              },
+              "filename": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "content_type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "size": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "owner_role": {
+                "type": "string",
+                "const": "assistant"
+              },
+              "direction": {
+                "type": "string",
+                "const": "outbound"
+              },
+              "state": {
+                "type": "string",
+                "enum": ["available", "expired", "deleted", "quarantined"]
+              },
+              "message_ref": {
+                "type": "string",
+                "pattern": "^(?!fi_|sn_)."
+              },
+              "message_ref_kind": {
+                "type": "string",
+                "const": "turn"
+              }
+            }
+          },
+          "description": "Ordered public descriptors of files generated for this answer, re-projected by SessionManager from its own sf_ records. Never carries fi_/sn_ identity, scope, storage keys, tickets or URLs."
+        }
+      },
+      "description": "Optional answer metadata. Runtime metadata keys (for example billing summaries) pass through; only meta.attachments is part of the public file contract."
     }
   }
 }

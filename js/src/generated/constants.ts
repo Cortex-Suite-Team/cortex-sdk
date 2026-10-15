@@ -14,6 +14,7 @@ export const DEFAULT_PING_INTERVAL_MS = 15000;
 export const DEFAULT_PONG_TIMEOUT_MS = 5000;
 export const DEFAULT_STALE_THRESHOLD_MS = 45000;
 export const TOKEN_REFRESH_BUFFER_MS = 60000;
+export const MAX_ATTACHMENTS_PER_MESSAGE = 8;
 
 /** @deprecated Use DEFAULT_AUTH_URL + AUTH_TOKEN_PATH instead. Scheduled for removal. */
 export const CORTEX_AUTH_URL = `${DEFAULT_AUTH_URL}${AUTH_TOKEN_PATH}`;

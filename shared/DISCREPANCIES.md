@@ -125,3 +125,30 @@ libraries. Upgrade to draft 2020-12 in a future phase if strict vocabulary featu
 **Phase 0 requirement:** Use `"direction": "client"` / `"direction": "server"`.
 **Decision taken:** New vocabulary used in all Phase 0 transcripts.
 **Owner action needed:** Update any tooling that reads old transcripts if it is ever reintroduced.
+
+---
+
+## D-11. `chat::answer` payload shape vs current Runtime
+
+**Found (SDK #2, 2026-10-15):** `cortex-runtime` `ChatAnswerPayload.to_dict()` emits `content` as
+`list[str]`, an integer `turn` (legacy `turn_id` is dropped on parse), an optional `meta` object
+(e.g. `meta.billing.summary`), and `role: "operator"` on the operator-close path.
+`schema/chat.answer.json` still requires a string `content`, a string `turn_id` and `role: "assistant"`.
+**Decision taken:** SDK #2 only adds `meta` (open object, strict `meta.attachments` descriptors) so a
+final answer can carry generated files. The SDK binds generated files to an answer by `payload.turn_id`,
+or by `String(payload.turn)` when only `turn` is present (`message_ref_kind = "turn"`).
+**Owner action needed:** Decide whether `chat.answer.json` follows the Runtime shape (`content: string[]`,
+`turn: integer`, operator role). Runtime #24 must set each published file's `message_ref` to the turn
+identity the user-visible answer carries; any other value makes the SDK exclude those files.
+
+---
+
+## D-12. `fi_` value-prefix check on file control responses
+
+**Found (SDK #2):** `assertSafePublicControl` / `assert_safe_public_control` reject any string value that
+starts with `fi_` anywhere in a `file::*` control response (`session_file_ws_v1.json`
+`forbidden_public_value_prefixes`). A user file legitimately named e.g. `fi_budget.csv` would make
+`listFiles()` / `downloadFile()` fail with `invalid_file_transfer`.
+**Decision taken:** Unchanged (frozen session-file-ws-v1 contract). Message attachment projection only applies
+the internal-prefix ban to identity fields (`file_ref`, `message_ref`), never to `filename`.
+**Owner action needed:** Decide whether the v1 control check should exempt `filename`.

@@ -24,7 +24,12 @@ import { createLiveness } from './liveness.js';
 import { createSession } from './session.js';
 import { createUploadSource, type UploadInput } from './upload.js';
 import { FileTransferManager, type UploadSource } from './file-transfer.js';
-import { parsePublicFileList, parsePublicFileRef, requireSessionFileRef } from './files.js';
+import {
+  parsePublicFileList,
+  parsePublicFileRef,
+  requireSessionFileRef,
+  sanitizeMessageAttachments,
+} from './files.js';
 import type {
   CortexClientOptions,
   CortexMessage,
@@ -127,7 +132,7 @@ export class CortexClient {
     this._transport.onText = (data) => {
       let message: CortexMessage;
       try { message = JSON.parse(data) as CortexMessage; } catch { return; }
-      if (!this._fileTransfers.handleMessage(message)) this._session.handleMessage(message);
+      if (!this._fileTransfers.handleMessage(message)) this._session.handleMessage(sanitizeMessageAttachments(message));
     };
     this._transport.onBinary = (data) => this._fileTransfers.handleBinary(data);
     this._transport.onClose = (code, reason) => this._handleClose(code, reason);

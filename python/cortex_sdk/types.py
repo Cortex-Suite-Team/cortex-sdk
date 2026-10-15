@@ -26,11 +26,40 @@ class AuthTokenResponse(TypedDict):
 FileScope = Literal["session", "project"]
 
 
+SessionFileOwnerRole = Literal["user", "assistant", "operator", "system"]
+SessionFileDirection = Literal["inbound", "outbound", "internal"]
+SessionFileState = Literal["available", "expired", "deleted", "quarantined"]
+SessionFileMessageRefKind = Literal["client_msg_id", "turn"]
+
+
+class SessionFileDescriptor(TypedDict):
+    """Public session-file descriptor from message ``payload.meta.attachments``
+    and ``file::list``. ``message_ref`` is the owning message's ``client_msg_id``
+    (user uploads) or turn id (assistant-generated files). Download with
+    ``download_file(file_ref)``."""
+
+    file_ref: str
+    filename: str
+    content_type: str
+    size: int
+    owner_role: SessionFileOwnerRole
+    direction: SessionFileDirection
+    state: SessionFileState
+    message_ref: NotRequired[str]
+    message_ref_kind: NotRequired[SessionFileMessageRefKind]
+
+
 class FileRef(TypedDict, total=False):
     file_ref: Required[str]
     filename: str
     content_type: str
     size: int
+    owner_role: SessionFileOwnerRole
+    direction: SessionFileDirection
+    state: SessionFileState
+    message_ref: str
+    message_ref_kind: SessionFileMessageRefKind
+    # Project (Control Plane) files only.
     scope_type: str
     scope_id: str
     status: str

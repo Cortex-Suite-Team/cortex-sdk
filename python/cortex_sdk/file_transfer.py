@@ -10,7 +10,7 @@ from typing import AsyncIterator, Awaitable, Callable
 
 from .constants import SCHEMA_VERSION
 from .errors import make_error
-from .files import parse_public_file_list, require_session_file_ref
+from .files import parse_session_file_list, require_session_file_ref
 from .transport import Transport
 from .types import CortexMessage, FileListResult
 from .upload import UploadSource
@@ -118,7 +118,7 @@ class FileTransferManager:
     async def list(self, session_id: str) -> FileListResult:
         result = await self._request(session_id, "file::list", "file::list.result", {})
         assert_safe_public_control(result["payload"])
-        return parse_public_file_list(result["payload"])
+        return parse_session_file_list(result["payload"])
 
     def handle_message(self, message: CortexMessage) -> bool:
         message_type = message.get("type")

@@ -24,7 +24,7 @@ To include file attachments, pass their IDs in the `attachments` array. See [Fil
 // JavaScript (Browser and Node.js)
 await client.sendMessage({
   content: "Summarize the attached document.",
-  attachments: ["att_abc123", "att_def456"],
+  attachments: ["sf_abc123", "sf_def456"],
 });
 ```
 
@@ -32,7 +32,7 @@ await client.sendMessage({
 # Python
 await client.send_message(
     content="Summarize the attached document.",
-    attachments=["att_abc123", "att_def456"],
+    attachments=["sf_abc123", "sf_def456"],
 )
 ```
 
@@ -156,6 +156,7 @@ Relevant payload fields:
 | `answer_kind` | string | `"final"` for the conclusive answer. |
 | `role` | string | Always `"assistant"` for runtime answers. |
 | `turn_id` | string | Matches the `turn_id` from the preceding `chat::partial` chunks. |
+| `meta.attachments` | array | Optional. Files generated for this answer, as public session-file descriptors in publication order. See [Receiving generated files](file-attachments.md#receiving-generated-files). |
 
 ```js
 // JavaScript (Browser and Node.js)

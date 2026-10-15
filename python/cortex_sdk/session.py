@@ -119,11 +119,23 @@ class SessionManager:
         await self._send(self._build_envelope("sandbox::stop", {}))
 
     async def send_chat_message(
-        self, content: str, attachments: list[SessionFileAttachmentInput] | None
+        self,
+        content: str,
+        attachments: list[SessionFileAttachmentInput] | None,
+        meta: dict[str, object] | None = None,
     ) -> None:
         payload: dict[str, object] = {"content": content, "role": "user"}
-        if attachments:
-            payload["meta"] = {"attachments": normalize_session_file_attachments(attachments)}
+        # meta merged first; official attachments param always wins
+        combined_meta: dict[str, object] = dict(meta) if meta else {}
+        # Only canonical sf_ references ever leave the SDK, whichever way they were passed.
+        meta_attachments = combined_meta.pop("attachments", None)
+        requested = attachments if attachments is not None else meta_attachments
+        if requested is not None:
+            normalized = normalize_session_file_attachments(requested)  # type: ignore[arg-type]
+            if normalized:
+                combined_meta["attachments"] = normalized
+        if combined_meta:
+            payload["meta"] = combined_meta
         await self._send(self._build_envelope("chat::message", payload))
 
     async def send_escalation_reply(

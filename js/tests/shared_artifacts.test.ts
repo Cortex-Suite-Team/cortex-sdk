@@ -15,6 +15,7 @@ import {
   TOKEN_REFRESH_BUFFER_MS,
   WS_SUBPROTOCOL,
   WS_SUBPROTOCOL_JWT_PREFIX,
+  MAX_ATTACHMENTS_PER_MESSAGE,
 } from '../src/constants.js';
 import { lookupError } from '../src/errors.js';
 
@@ -36,6 +37,7 @@ describe('shared artifact parity', () => {
       DEFAULT_PONG_TIMEOUT_MS: number;
       DEFAULT_STALE_THRESHOLD_MS: number;
       TOKEN_REFRESH_BUFFER_MS: number;
+      MAX_ATTACHMENTS_PER_MESSAGE: number;
       RECONNECT_BACKOFF_MS: number[];
     };
 
@@ -52,6 +54,7 @@ describe('shared artifact parity', () => {
     expect(DEFAULT_PONG_TIMEOUT_MS).toBe(shared.DEFAULT_PONG_TIMEOUT_MS);
     expect(DEFAULT_STALE_THRESHOLD_MS).toBe(shared.DEFAULT_STALE_THRESHOLD_MS);
     expect(TOKEN_REFRESH_BUFFER_MS).toBe(shared.TOKEN_REFRESH_BUFFER_MS);
+    expect(MAX_ATTACHMENTS_PER_MESSAGE).toBe(shared.MAX_ATTACHMENTS_PER_MESSAGE);
     expect(Array.from(RECONNECT_BACKOFF_MS)).toEqual(shared.RECONNECT_BACKOFF_MS);
   });
 
@@ -62,7 +65,7 @@ describe('shared artifact parity', () => {
       errors: Array<{ code: string; retryable: boolean; fatal: boolean }>;
     };
 
-    expect(shared.errors).toHaveLength(25);
+    expect(shared.errors).toHaveLength(27);
     for (const entry of shared.errors) {
       expect(lookupError(entry.code)).toEqual({
         code: entry.code,

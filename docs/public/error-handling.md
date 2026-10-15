@@ -110,6 +110,8 @@ from cortex_sdk import CortexClient, CortexError
 | `file_upload_failed` | yes | no | Transient upload failure |
 | `file_download_failed` | yes | no | Transient download failure |
 | `file_unavailable` | yes | no | Requested session file is unavailable |
+| `too_many_attachments` | no | no | More attachments than the per-message limit (SDK: 8; SessionManager may be lower) |
+| `invalid_attachment` | no | no | Attachment is not a canonical `sf_` reference, is duplicated, unknown, expired or bound to another message |
 
 ---
 

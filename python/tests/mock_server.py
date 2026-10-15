@@ -239,6 +239,7 @@ class MockServerOptions:
     initial_access_token: str = FIXED_ACCESS_TOKEN
     refreshed_access_token: str = "access_token_v2"
     refresh_token: str = FIXED_REFRESH_TOKEN
+    auto_file_transport: bool = True
     on_ws_message: Callable[
         [
             dict[str, object],
@@ -414,6 +415,7 @@ async def start_mock_server(
     initial_access_token: str = FIXED_ACCESS_TOKEN,
     refreshed_access_token: str = "access_token_v2",
     refresh_token: str = FIXED_REFRESH_TOKEN,
+    auto_file_transport: bool = True,
     on_ws_message: Callable[
         [
             dict[str, object],
@@ -434,6 +436,7 @@ async def start_mock_server(
         initial_access_token=initial_access_token,
         refreshed_access_token=refreshed_access_token,
         refresh_token=refresh_token,
+        auto_file_transport=auto_file_transport,
         on_ws_message=on_ws_message,
     )
 
@@ -580,19 +583,19 @@ async def start_mock_server(
                 meta = msg.get("meta", {})
                 assert isinstance(meta, dict)
                 correlation = {"client_msg_id": meta.get("client_msg_id")}
-                if msg_type == "file::upload.prepare":
+                if options.auto_file_transport and msg_type == "file::upload.prepare":
                     await srv.send_to(ws, {
                         "type": "file::upload.ready", "schema": "1.0", "session_id": FIXED_SESSION_ID,
                         "payload": {"transfer_id": "ft_01010101010101010101010101010101", "chunk_bytes": 2, "max_bytes": 52428800},
                         "meta": correlation, "ts": _ts(),
                     })
-                if msg_type == "file::upload.commit":
+                if options.auto_file_transport and msg_type == "file::upload.commit":
                     await srv.send_to(ws, {
                         "type": "file::upload.complete", "schema": "1.0", "session_id": FIXED_SESSION_ID,
                         "payload": {"transfer_id": "ft_01010101010101010101010101010101", "file_ref": FIXED_ATTACHMENT_ID},
                         "meta": correlation, "ts": _ts(),
                     })
-                if msg_type == "file::download.prepare":
+                if options.auto_file_transport and msg_type == "file::download.prepare":
                     transfer_id = "ft_02020202020202020202020202020202"
                     content = b"mock file bytes"
                     await srv.send_to(ws, {
@@ -603,10 +606,10 @@ async def start_mock_server(
                     await asyncio.sleep(0)
                     await ws.send(b"CFT1" + bytes.fromhex(transfer_id[3:]) + (0).to_bytes(4, "big") + content)
                     await srv.send_to(ws, {"type": "file::download.complete", "schema": "1.0", "session_id": FIXED_SESSION_ID, "payload": {"transfer_id": transfer_id}, "ts": _ts()})
-                if msg_type == "file::list":
+                if options.auto_file_transport and msg_type == "file::list":
                     await srv.send_to(ws, {
                         "type": "file::list.result", "schema": "1.0", "session_id": FIXED_SESSION_ID,
-                        "payload": {"files": [{"file_ref": FIXED_ATTACHMENT_ID, "filename": "upload", "scope_type": "session", "scope_id": FIXED_SESSION_ID, "status": "ready"}], "total": 1},
+                        "payload": {"files": [{"file_ref": FIXED_ATTACHMENT_ID, "filename": "upload", "content_type": "application/octet-stream", "size": 15, "owner_role": "user", "direction": "inbound", "state": "available"}], "total": 1},
                         "meta": correlation, "ts": _ts(),
                     })
 

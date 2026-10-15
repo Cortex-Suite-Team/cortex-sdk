@@ -1,0 +1,863 @@
+{
+  "version": "session-file-attachments-v1",
+  "description": "Public SDK fixture for the EA multi-file workflow: 3 uploaded user files -> one chat::message -> 2 independently downloadable generated files. Strict contract fixture derived from SessionManager source; it is NOT physical SessionManager/File Link qualification.",
+  "provenance": {
+    "sdk_issue": "Cortex-Suite-Team/cortex-sdk#2",
+    "sdk_ui_issue": "Cortex-Suite-Team/cortex-sdk-ui#2",
+    "parent_issue": "TimurKady/cortex#3161",
+    "edge_node_ref": "50af0ad644614225bd9b67d3d49a145f21ee68c7",
+    "common_ref": "ccdd318",
+    "file_layer_ref": "1526271",
+    "runtime_dependency": "TimurKady/cortex-runtime#24 is not implemented; the outbound chat::answer below is the Edge #6 contract shape, not an observed Runtime message"
+  },
+  "limits": {
+    "max_attachments_per_message": 8,
+    "max_public_attachments_per_message": 16
+  },
+  "public_descriptor_fields": [
+    "file_ref",
+    "filename",
+    "content_type",
+    "size",
+    "owner_role",
+    "direction",
+    "state",
+    "message_ref",
+    "message_ref_kind"
+  ],
+  "required_descriptor_fields": [
+    "file_ref",
+    "filename",
+    "content_type",
+    "size",
+    "owner_role",
+    "direction",
+    "state"
+  ],
+  "file_ref_pattern": "^sf_[A-Za-z0-9][A-Za-z0-9_-]*$",
+  "owner_roles": [
+    "user",
+    "assistant",
+    "operator",
+    "system"
+  ],
+  "directions": [
+    "inbound",
+    "outbound",
+    "internal"
+  ],
+  "states": [
+    "available",
+    "expired",
+    "deleted",
+    "quarantined"
+  ],
+  "message_ref_kinds": {
+    "user_message": "client_msg_id",
+    "assistant_answer": "turn"
+  },
+  "message_binding": {
+    "user_message": "user/inbound descriptors belong to the chat::message whose meta.client_msg_id equals descriptor.message_ref (message_ref_kind=client_msg_id); they are echoed in chat::echo payload.meta.attachments",
+    "assistant_answer": "assistant/outbound descriptors belong to the chat::answer whose turn identity (payload.turn_id, or String(payload.turn)) equals descriptor.message_ref (message_ref_kind=turn); they arrive in that answer's payload.meta.attachments",
+    "inherited_user_files": "a user/inbound descriptor inside an assistant answer (Runtime continue-from-wait re-exports the user's meta) is never an assistant attachment and is excluded"
+  },
+  "session_id": "sess_ea_multi_001",
+  "client_msg_id": "cli_msg_ea_3in_2out",
+  "turn_id": "turn_ea_0007",
+  "inputs": [
+    {
+      "descriptor": {
+        "file_ref": "sf_in_01HZY1",
+        "filename": "revenue.csv",
+        "content_type": "text/csv",
+        "size": 40,
+        "owner_role": "user",
+        "direction": "inbound",
+        "state": "available",
+        "message_ref": "cli_msg_ea_3in_2out",
+        "message_ref_kind": "client_msg_id"
+      },
+      "bytes_hex": "726567696f6e2c71312c71320a6e6f7274682c3132302c3133350a736f7574682c39382c3130340a",
+      "sha256": "4d6414238988d3983c22b2ebf0dee7a0dde8e9ec5461b90f697f20a8b622393e"
+    },
+    {
+      "descriptor": {
+        "file_ref": "sf_in_01HZY2",
+        "filename": "brief.md",
+        "content_type": "text/markdown",
+        "size": 60,
+        "owner_role": "user",
+        "direction": "inbound",
+        "state": "available",
+        "message_ref": "cli_msg_ea_3in_2out",
+        "message_ref_kind": "client_msg_id"
+      },
+      "bytes_hex": "232042726965660a436f6d7061726520726567696f6e616c20726576656e756520616e6420666c616720616e792064726f70206f7665722035252e0a",
+      "sha256": "2055586738fdb2b6247ff79e34ff15d85f4569e4fa45b8835fb14022b8ca7a8b"
+    },
+    {
+      "descriptor": {
+        "file_ref": "sf_in_01HZY3",
+        "filename": "appendix.bin",
+        "content_type": "application/octet-stream",
+        "size": 256,
+        "owner_role": "user",
+        "direction": "inbound",
+        "state": "available",
+        "message_ref": "cli_msg_ea_3in_2out",
+        "message_ref_kind": "client_msg_id"
+      },
+      "bytes_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+      "sha256": "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880"
+    }
+  ],
+  "outputs": [
+    {
+      "descriptor": {
+        "file_ref": "sf_out_01HZZ1",
+        "filename": "delta.csv",
+        "content_type": "text/csv",
+        "size": 38,
+        "owner_role": "assistant",
+        "direction": "outbound",
+        "state": "available",
+        "message_ref": "turn_ea_0007",
+        "message_ref_kind": "turn"
+      },
+      "bytes_hex": "726567696f6e2c64656c74615f7063740a6e6f7274682c31322e350a736f7574682c362e310a",
+      "sha256": "2b78d47f2389654ad5389483dfc6f8fe0db853b0a7a5598ab5ec3a8d1e3b90a4"
+    },
+    {
+      "descriptor": {
+        "file_ref": "sf_out_01HZZ2",
+        "filename": "summary.md",
+        "content_type": "text/markdown",
+        "size": 49,
+        "owner_role": "assistant",
+        "direction": "outbound",
+        "state": "available",
+        "message_ref": "turn_ea_0007",
+        "message_ref_kind": "turn"
+      },
+      "bytes_hex": "232053756d6d6172790a426f746820726567696f6e7320677265773b206e6f727468206c65642061742031322e35252e0a",
+      "sha256": "6e334580d7d5558f0be93cbca4fe927d44a310f39a87f26da83b4d0b81de06ca"
+    }
+  ],
+  "messages": {
+    "chat_message": {
+      "content": "Compare the attached revenue files.",
+      "role": "user",
+      "meta": {
+        "client_msg_id": "cli_msg_ea_3in_2out",
+        "attachments": [
+          {
+            "file_ref": "sf_in_01HZY1"
+          },
+          {
+            "file_ref": "sf_in_01HZY2"
+          },
+          {
+            "file_ref": "sf_in_01HZY3"
+          }
+        ]
+      }
+    },
+    "chat_echo": {
+      "content": "Compare the attached revenue files.",
+      "role": "user",
+      "meta": {
+        "client_msg_id": "cli_msg_ea_3in_2out",
+        "attachments": [
+          {
+            "file_ref": "sf_in_01HZY1",
+            "filename": "revenue.csv",
+            "content_type": "text/csv",
+            "size": 40,
+            "owner_role": "user",
+            "direction": "inbound",
+            "state": "available",
+            "message_ref": "cli_msg_ea_3in_2out",
+            "message_ref_kind": "client_msg_id"
+          },
+          {
+            "file_ref": "sf_in_01HZY2",
+            "filename": "brief.md",
+            "content_type": "text/markdown",
+            "size": 60,
+            "owner_role": "user",
+            "direction": "inbound",
+            "state": "available",
+            "message_ref": "cli_msg_ea_3in_2out",
+            "message_ref_kind": "client_msg_id"
+          },
+          {
+            "file_ref": "sf_in_01HZY3",
+            "filename": "appendix.bin",
+            "content_type": "application/octet-stream",
+            "size": 256,
+            "owner_role": "user",
+            "direction": "inbound",
+            "state": "available",
+            "message_ref": "cli_msg_ea_3in_2out",
+            "message_ref_kind": "client_msg_id"
+          }
+        ]
+      }
+    },
+    "chat_answer": {
+      "content": "Here are the regional deltas and a summary.",
+      "role": "assistant",
+      "answer_kind": "final",
+      "turn_id": "turn_ea_0007",
+      "meta": {
+        "attachments": [
+          {
+            "file_ref": "sf_out_01HZZ1",
+            "filename": "delta.csv",
+            "content_type": "text/csv",
+            "size": 38,
+            "owner_role": "assistant",
+            "direction": "outbound",
+            "state": "available",
+            "message_ref": "turn_ea_0007",
+            "message_ref_kind": "turn"
+          },
+          {
+            "file_ref": "sf_out_01HZZ2",
+            "filename": "summary.md",
+            "content_type": "text/markdown",
+            "size": 49,
+            "owner_role": "assistant",
+            "direction": "outbound",
+            "state": "available",
+            "message_ref": "turn_ea_0007",
+            "message_ref_kind": "turn"
+          }
+        ]
+      }
+    },
+    "file_list_result": {
+      "files": [
+        {
+          "file_ref": "sf_in_01HZY1",
+          "filename": "revenue.csv",
+          "content_type": "text/csv",
+          "size": 40,
+          "owner_role": "user",
+          "direction": "inbound",
+          "state": "available",
+          "message_ref": "cli_msg_ea_3in_2out",
+          "message_ref_kind": "client_msg_id"
+        },
+        {
+          "file_ref": "sf_in_01HZY2",
+          "filename": "brief.md",
+          "content_type": "text/markdown",
+          "size": 60,
+          "owner_role": "user",
+          "direction": "inbound",
+          "state": "available",
+          "message_ref": "cli_msg_ea_3in_2out",
+          "message_ref_kind": "client_msg_id"
+        },
+        {
+          "file_ref": "sf_in_01HZY3",
+          "filename": "appendix.bin",
+          "content_type": "application/octet-stream",
+          "size": 256,
+          "owner_role": "user",
+          "direction": "inbound",
+          "state": "available",
+          "message_ref": "cli_msg_ea_3in_2out",
+          "message_ref_kind": "client_msg_id"
+        },
+        {
+          "file_ref": "sf_out_01HZZ1",
+          "filename": "delta.csv",
+          "content_type": "text/csv",
+          "size": 38,
+          "owner_role": "assistant",
+          "direction": "outbound",
+          "state": "available",
+          "message_ref": "turn_ea_0007",
+          "message_ref_kind": "turn"
+        },
+        {
+          "file_ref": "sf_out_01HZZ2",
+          "filename": "summary.md",
+          "content_type": "text/markdown",
+          "size": 49,
+          "owner_role": "assistant",
+          "direction": "outbound",
+          "state": "available",
+          "message_ref": "turn_ea_0007",
+          "message_ref_kind": "turn"
+        }
+      ],
+      "total": 5
+    }
+  },
+  "send_rejections": [
+    {
+      "name": "ninth_attachment",
+      "attachments": [
+        "sf_in_01",
+        "sf_in_02",
+        "sf_in_03",
+        "sf_in_04",
+        "sf_in_05",
+        "sf_in_06",
+        "sf_in_07",
+        "sf_in_08",
+        "sf_in_09"
+      ],
+      "error_code": "too_many_attachments"
+    },
+    {
+      "name": "duplicate_ref",
+      "attachments": [
+        "sf_in_01HZY1",
+        "sf_in_01HZY2",
+        "sf_in_01HZY1"
+      ],
+      "error_code": "invalid_attachment"
+    },
+    {
+      "name": "duplicate_ref_mixed_forms",
+      "attachments": [
+        "sf_in_01HZY1",
+        {
+          "file_ref": "sf_in_01HZY1"
+        }
+      ],
+      "error_code": "invalid_attachment"
+    },
+    {
+      "name": "internal_file_id",
+      "attachments": [
+        "fi_0123456789abcdef"
+      ],
+      "error_code": "invalid_attachment"
+    },
+    {
+      "name": "legacy_attachment_id",
+      "attachments": [
+        "fa_legacy_01"
+      ],
+      "error_code": "invalid_attachment"
+    },
+    {
+      "name": "empty_string",
+      "attachments": [
+        ""
+      ],
+      "error_code": "invalid_attachment"
+    },
+    {
+      "name": "internal_field_on_object",
+      "attachments": [
+        {
+          "file_ref": "sf_in_01HZY1",
+          "file_id": "fi_0123456789abcdef"
+        }
+      ],
+      "error_code": "invalid_attachment"
+    },
+    {
+      "name": "url_field_on_object",
+      "attachments": [
+        {
+          "file_ref": "sf_in_01HZY1",
+          "download_mint_url": "https://evil.example/mint"
+        }
+      ],
+      "error_code": "invalid_attachment"
+    },
+    {
+      "name": "non_string_ref",
+      "attachments": [
+        42
+      ],
+      "error_code": "invalid_attachment"
+    }
+  ],
+  "server_attachment_errors": [
+    {
+      "name": "server_limit",
+      "payload": {
+        "code": "too_many_attachments",
+        "message": "At most 8 file(s) may be attached per message."
+      },
+      "retryable": false,
+      "fatal": false
+    },
+    {
+      "name": "server_invalid",
+      "payload": {
+        "code": "invalid_attachment",
+        "message": "sf_in_01HZY9: session file not found"
+      },
+      "retryable": false,
+      "fatal": false
+    }
+  ],
+  "hostile_descriptors": [
+    {
+      "name": "internal_identity_fields",
+      "input": {
+        "file_ref": "sf_out_01HZZ1",
+        "filename": "delta.csv",
+        "content_type": "text/csv",
+        "size": 38,
+        "owner_role": "assistant",
+        "direction": "outbound",
+        "state": "available",
+        "message_ref": "turn_ea_0007",
+        "message_ref_kind": "turn",
+        "file_id": "fi_0123456789abcdef",
+        "snapshot_id": "sn_0123456789abcdef",
+        "scope_type": "session",
+        "scope_id": "sess_ea_multi_001",
+        "storage_key": "tenant/a/blob",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": {
+        "file_ref": "sf_out_01HZZ1",
+        "filename": "delta.csv",
+        "content_type": "text/csv",
+        "size": 38,
+        "owner_role": "assistant",
+        "direction": "outbound",
+        "state": "available",
+        "message_ref": "turn_ea_0007",
+        "message_ref_kind": "turn"
+      }
+    },
+    {
+      "name": "url_and_ticket_injection",
+      "input": {
+        "file_ref": "sf_out_01HZZ2",
+        "filename": "summary.md",
+        "content_type": "text/markdown",
+        "size": 49,
+        "owner_role": "assistant",
+        "direction": "outbound",
+        "state": "available",
+        "message_ref": "turn_ea_0007",
+        "message_ref_kind": "turn",
+        "download_mint_url": "https://evil.example/mint",
+        "download_url": "https://evil.example/f",
+        "url": "https://evil.example/f",
+        "delivery_ticket": "tkt_secret",
+        "upload_path": "/internal/upload"
+      },
+      "expected": {
+        "file_ref": "sf_out_01HZZ2",
+        "filename": "summary.md",
+        "content_type": "text/markdown",
+        "size": 49,
+        "owner_role": "assistant",
+        "direction": "outbound",
+        "state": "available",
+        "message_ref": "turn_ea_0007",
+        "message_ref_kind": "turn"
+      }
+    },
+    {
+      "name": "filename_resembling_internal_prefix_is_kept",
+      "input": {
+        "file_ref": "sf_out_01HZZ1",
+        "filename": "fi_budget.csv",
+        "content_type": "text/csv",
+        "size": 38,
+        "owner_role": "assistant",
+        "direction": "outbound",
+        "state": "available",
+        "message_ref": "turn_ea_0007",
+        "message_ref_kind": "turn"
+      },
+      "expected": {
+        "file_ref": "sf_out_01HZZ1",
+        "filename": "fi_budget.csv",
+        "content_type": "text/csv",
+        "size": 38,
+        "owner_role": "assistant",
+        "direction": "outbound",
+        "state": "available",
+        "message_ref": "turn_ea_0007",
+        "message_ref_kind": "turn"
+      }
+    },
+    {
+      "name": "internal_file_ref",
+      "input": {
+        "file_ref": "fi_0123456789abcdef",
+        "filename": "delta.csv",
+        "content_type": "text/csv",
+        "size": 38,
+        "owner_role": "assistant",
+        "direction": "outbound",
+        "state": "available",
+        "message_ref": "turn_ea_0007",
+        "message_ref_kind": "turn"
+      },
+      "expected": null
+    },
+    {
+      "name": "internal_snapshot_ref",
+      "input": {
+        "file_ref": "sn_0123456789abcdef",
+        "filename": "delta.csv",
+        "content_type": "text/csv",
+        "size": 38,
+        "owner_role": "assistant",
+        "direction": "outbound",
+        "state": "available",
+        "message_ref": "turn_ea_0007",
+        "message_ref_kind": "turn"
+      },
+      "expected": null
+    },
+    {
+      "name": "legacy_attachment_ref",
+      "input": {
+        "file_ref": "fa_legacy_01",
+        "filename": "delta.csv",
+        "content_type": "text/csv",
+        "size": 38,
+        "owner_role": "assistant",
+        "direction": "outbound",
+        "state": "available",
+        "message_ref": "turn_ea_0007",
+        "message_ref_kind": "turn"
+      },
+      "expected": null
+    },
+    {
+      "name": "internal_value_in_public_field",
+      "input": {
+        "file_ref": "sf_out_01HZZ1",
+        "filename": "delta.csv",
+        "content_type": "text/csv",
+        "size": 38,
+        "owner_role": "assistant",
+        "direction": "outbound",
+        "state": "available",
+        "message_ref": "fi_0123456789abcdef",
+        "message_ref_kind": "turn"
+      },
+      "expected": null
+    },
+    {
+      "name": "missing_filename",
+      "input": {
+        "file_ref": "sf_out_01HZZ1",
+        "content_type": "text/csv",
+        "size": 38,
+        "owner_role": "assistant",
+        "direction": "outbound",
+        "state": "available",
+        "message_ref": "turn_ea_0007",
+        "message_ref_kind": "turn"
+      },
+      "expected": null
+    },
+    {
+      "name": "missing_owner_role",
+      "input": {
+        "file_ref": "sf_out_01HZZ1",
+        "filename": "delta.csv",
+        "content_type": "text/csv",
+        "size": 38,
+        "direction": "outbound",
+        "state": "available",
+        "message_ref": "turn_ea_0007",
+        "message_ref_kind": "turn"
+      },
+      "expected": null
+    },
+    {
+      "name": "negative_size",
+      "input": {
+        "file_ref": "sf_out_01HZZ1",
+        "filename": "delta.csv",
+        "content_type": "text/csv",
+        "size": -1,
+        "owner_role": "assistant",
+        "direction": "outbound",
+        "state": "available",
+        "message_ref": "turn_ea_0007",
+        "message_ref_kind": "turn"
+      },
+      "expected": null
+    },
+    {
+      "name": "fractional_size",
+      "input": {
+        "file_ref": "sf_out_01HZZ1",
+        "filename": "delta.csv",
+        "content_type": "text/csv",
+        "size": 1.5,
+        "owner_role": "assistant",
+        "direction": "outbound",
+        "state": "available",
+        "message_ref": "turn_ea_0007",
+        "message_ref_kind": "turn"
+      },
+      "expected": null
+    },
+    {
+      "name": "boolean_size",
+      "input": {
+        "file_ref": "sf_out_01HZZ1",
+        "filename": "delta.csv",
+        "content_type": "text/csv",
+        "size": true,
+        "owner_role": "assistant",
+        "direction": "outbound",
+        "state": "available",
+        "message_ref": "turn_ea_0007",
+        "message_ref_kind": "turn"
+      },
+      "expected": null
+    },
+    {
+      "name": "unknown_owner_role",
+      "input": {
+        "file_ref": "sf_out_01HZZ1",
+        "filename": "delta.csv",
+        "content_type": "text/csv",
+        "size": 38,
+        "owner_role": "root",
+        "direction": "outbound",
+        "state": "available",
+        "message_ref": "turn_ea_0007",
+        "message_ref_kind": "turn"
+      },
+      "expected": null
+    },
+    {
+      "name": "unknown_state",
+      "input": {
+        "file_ref": "sf_out_01HZZ1",
+        "filename": "delta.csv",
+        "content_type": "text/csv",
+        "size": 38,
+        "owner_role": "assistant",
+        "direction": "outbound",
+        "state": "ready",
+        "message_ref": "turn_ea_0007",
+        "message_ref_kind": "turn"
+      },
+      "expected": null
+    },
+    {
+      "name": "non_object",
+      "input": "sf_out_01HZZ1",
+      "expected": null
+    }
+  ],
+  "answer_projection_cases": [
+    {
+      "name": "inherited_user_upload_in_answer",
+      "attachments": [
+        {
+          "file_ref": "sf_in_01HZY1",
+          "filename": "revenue.csv",
+          "content_type": "text/csv",
+          "size": 40,
+          "owner_role": "user",
+          "direction": "inbound",
+          "state": "available",
+          "message_ref": "cli_msg_ea_3in_2out",
+          "message_ref_kind": "client_msg_id"
+        },
+        {
+          "file_ref": "sf_out_01HZZ1",
+          "filename": "delta.csv",
+          "content_type": "text/csv",
+          "size": 38,
+          "owner_role": "assistant",
+          "direction": "outbound",
+          "state": "available",
+          "message_ref": "turn_ea_0007",
+          "message_ref_kind": "turn"
+        }
+      ],
+      "expected_refs": [
+        "sf_out_01HZZ1"
+      ]
+    },
+    {
+      "name": "wrong_turn",
+      "attachments": [
+        {
+          "file_ref": "sf_out_01HZZ1",
+          "filename": "delta.csv",
+          "content_type": "text/csv",
+          "size": 38,
+          "owner_role": "assistant",
+          "direction": "outbound",
+          "state": "available",
+          "message_ref": "turn_other",
+          "message_ref_kind": "turn"
+        },
+        {
+          "file_ref": "sf_out_01HZZ2",
+          "filename": "summary.md",
+          "content_type": "text/markdown",
+          "size": 49,
+          "owner_role": "assistant",
+          "direction": "outbound",
+          "state": "available",
+          "message_ref": "turn_ea_0007",
+          "message_ref_kind": "turn"
+        }
+      ],
+      "expected_refs": [
+        "sf_out_01HZZ2"
+      ]
+    },
+    {
+      "name": "wrong_message_ref_kind",
+      "attachments": [
+        {
+          "file_ref": "sf_out_01HZZ1",
+          "filename": "delta.csv",
+          "content_type": "text/csv",
+          "size": 38,
+          "owner_role": "assistant",
+          "direction": "outbound",
+          "state": "available",
+          "message_ref": "turn_ea_0007",
+          "message_ref_kind": "client_msg_id"
+        },
+        {
+          "file_ref": "sf_out_01HZZ2",
+          "filename": "summary.md",
+          "content_type": "text/markdown",
+          "size": 49,
+          "owner_role": "assistant",
+          "direction": "outbound",
+          "state": "available",
+          "message_ref": "turn_ea_0007",
+          "message_ref_kind": "turn"
+        }
+      ],
+      "expected_refs": [
+        "sf_out_01HZZ2"
+      ]
+    },
+    {
+      "name": "duplicate_ref",
+      "attachments": [
+        {
+          "file_ref": "sf_out_01HZZ1",
+          "filename": "delta.csv",
+          "content_type": "text/csv",
+          "size": 38,
+          "owner_role": "assistant",
+          "direction": "outbound",
+          "state": "available",
+          "message_ref": "turn_ea_0007",
+          "message_ref_kind": "turn"
+        },
+        {
+          "file_ref": "sf_out_01HZZ1",
+          "filename": "delta.csv",
+          "content_type": "text/csv",
+          "size": 38,
+          "owner_role": "assistant",
+          "direction": "outbound",
+          "state": "available",
+          "message_ref": "turn_ea_0007",
+          "message_ref_kind": "turn"
+        },
+        {
+          "file_ref": "sf_out_01HZZ2",
+          "filename": "summary.md",
+          "content_type": "text/markdown",
+          "size": 49,
+          "owner_role": "assistant",
+          "direction": "outbound",
+          "state": "available",
+          "message_ref": "turn_ea_0007",
+          "message_ref_kind": "turn"
+        }
+      ],
+      "expected_refs": [
+        "sf_out_01HZZ1",
+        "sf_out_01HZZ2"
+      ]
+    },
+    {
+      "name": "not_a_list",
+      "attachments": {
+        "file_ref": "sf_out_01HZZ1"
+      },
+      "expected_refs": []
+    }
+  ],
+  "echo_projection_cases": [
+    {
+      "name": "assistant_file_in_user_echo",
+      "attachments": [
+        {
+          "file_ref": "sf_out_01HZZ1",
+          "filename": "delta.csv",
+          "content_type": "text/csv",
+          "size": 38,
+          "owner_role": "assistant",
+          "direction": "outbound",
+          "state": "available",
+          "message_ref": "turn_ea_0007",
+          "message_ref_kind": "turn"
+        },
+        {
+          "file_ref": "sf_in_01HZY2",
+          "filename": "brief.md",
+          "content_type": "text/markdown",
+          "size": 60,
+          "owner_role": "user",
+          "direction": "inbound",
+          "state": "available",
+          "message_ref": "cli_msg_ea_3in_2out",
+          "message_ref_kind": "client_msg_id"
+        }
+      ],
+      "expected_refs": [
+        "sf_in_01HZY2"
+      ]
+    },
+    {
+      "name": "wrong_client_msg_id",
+      "attachments": [
+        {
+          "file_ref": "sf_in_01HZY1",
+          "filename": "revenue.csv",
+          "content_type": "text/csv",
+          "size": 40,
+          "owner_role": "user",
+          "direction": "inbound",
+          "state": "available",
+          "message_ref": "cli_msg_other",
+          "message_ref_kind": "client_msg_id"
+        },
+        {
+          "file_ref": "sf_in_01HZY3",
+          "filename": "appendix.bin",
+          "content_type": "application/octet-stream",
+          "size": 256,
+          "owner_role": "user",
+          "direction": "inbound",
+          "state": "available",
+          "message_ref": "cli_msg_ea_3in_2out",
+          "message_ref_kind": "client_msg_id"
+        }
+      ],
+      "expected_refs": [
+        "sf_in_01HZY3"
+      ]
+    }
+  ]
+}

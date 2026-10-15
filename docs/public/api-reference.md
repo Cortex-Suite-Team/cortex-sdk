@@ -98,7 +98,7 @@ This method is additive transport subscription plumbing. It does not replace the
 
 ---
 
-### `sendMessage(options)` / `send_message(content, attachments?)`
+### `sendMessage(options)` / `send_message(content, attachments?, *, meta?)`
 
 Sends a chat message to the runtime over the WebSocket.
 
@@ -109,7 +109,7 @@ await client.sendMessage({ content: "Hello" });
 // With attachments:
 await client.sendMessage({
   content: "Analyze this document.",
-  attachments: ["att_abc123"],
+  attachments: ["sf_abc123"],
 });
 ```
 
@@ -129,11 +129,12 @@ await client.send_message(
 | Parameter | JS/Node type | Python type | Required | Description |
 |---|---|---|---|---|
 | `content` | `string` | `str` | **yes** | Message text |
-| `attachments` | `(string \| SessionFileAttachment)[]` | `list[str \| SessionFileAttachment]` | no | Canonical `sf_...` references from upload; serialized as `payload.meta.attachments[].file_ref` |
+| `attachments` | `(string \| SessionFileAttachment)[]` | `list[str \| SessionFileAttachment]` | no | Up to 8 distinct canonical `sf_...` references from upload, in order; serialized as `payload.meta.attachments[].file_ref` |
+| `meta` | `Record<string, unknown>` | `dict[str, object]` | no | Extra message metadata, e.g. a stable `client_msg_id` reused on retry. `attachments` always wins over `meta.attachments` |
 
 **Returns:** `Promise<void>` / coroutine
 
-**Throws:** `CortexError` with `code: "transport_send_timeout"` if the message cannot be delivered within `sendTimeout`.
+**Throws:** `CortexError` with `code: "transport_send_timeout"` if the message cannot be delivered within `sendTimeout`; `too_many_attachments` or `invalid_attachment` (nothing is sent) for an attachment list that breaks the rules in [File Attachments](file-attachments.md#multiple-attachments).
 
 ---
 

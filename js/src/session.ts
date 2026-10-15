@@ -143,8 +143,12 @@ export function createSession(
     const combinedMeta: Record<string, unknown> = {};
     // meta merged first; official attachments param always wins
     if (meta) Object.assign(combinedMeta, meta);
-    if (attachments && attachments.length > 0) {
-      combinedMeta['attachments'] = normalizeSessionFileAttachments(attachments);
+    // Only canonical sf_ references ever leave the SDK, whichever way they were passed.
+    const requested = attachments ?? (combinedMeta['attachments'] as SessionFileAttachmentInput[] | undefined);
+    delete combinedMeta['attachments'];
+    if (requested !== undefined && requested !== null) {
+      const normalized = normalizeSessionFileAttachments(requested);
+      if (normalized.length > 0) combinedMeta['attachments'] = normalized;
     }
     if (Object.keys(combinedMeta).length > 0) payload['meta'] = combinedMeta;
     return payload;

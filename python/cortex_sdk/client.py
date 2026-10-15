@@ -26,7 +26,12 @@ from .constants import (
     RECONNECT_BACKOFF,
 )
 from .errors import CortexError, make_error
-from .files import parse_public_file_list, parse_public_file_ref, require_session_file_ref
+from .files import (
+    parse_public_file_list,
+    parse_public_file_ref,
+    require_session_file_ref,
+    sanitize_message_attachments,
+)
 from .file_transfer import FileTransferManager
 from .liveness import LivenessMonitor
 from .session import SessionManager
@@ -168,10 +173,16 @@ class CortexClient:
         await self._transport.aclose()
 
     async def send_message(
-        self, content: str, attachments: list[SessionFileAttachmentInput] | None = None
+        self,
+        content: str,
+        attachments: list[SessionFileAttachmentInput] | None = None,
+        *,
+        meta: dict[str, object] | None = None,
     ) -> None:
+        """Send a user message. Pass a stable ``meta["client_msg_id"]`` and reuse it
+        on retry so a resent message keeps its identity and attachment binding."""
         await self._wait_for_open_channel()
-        await self._session.send_chat_message(content, attachments)
+        await self._session.send_chat_message(content, attachments, meta)
 
     async def reply_escalation(
         self,
@@ -381,7 +392,7 @@ class CortexClient:
         except Exception:
             return
         if not self._file_transfers.handle_message(message):
-            self._session.handle_message(message)
+            self._session.handle_message(sanitize_message_attachments(message))
 
     def _handle_fatal_error(self, err: CortexError) -> None:
         self._file_transfers.abort_all()

@@ -16,6 +16,7 @@ from cortex_sdk.constants import (
     RECONNECT_BACKOFF,
     SCHEMA_VERSION,
     TOKEN_REFRESH_BUFFER,
+    MAX_ATTACHMENTS_PER_MESSAGE,
     WS_SUBPROTOCOL,
     WS_SUBPROTOCOL_JWT_PREFIX,
 )
@@ -41,13 +42,14 @@ def test_constants_match_shared_artifact() -> None:
     assert DEFAULT_PONG_TIMEOUT == shared["DEFAULT_PONG_TIMEOUT_MS"] / 1000
     assert DEFAULT_STALE_THRESHOLD == shared["DEFAULT_STALE_THRESHOLD_MS"] / 1000
     assert TOKEN_REFRESH_BUFFER == shared["TOKEN_REFRESH_BUFFER_MS"] / 1000
+    assert MAX_ATTACHMENTS_PER_MESSAGE == shared["MAX_ATTACHMENTS_PER_MESSAGE"]
     assert RECONNECT_BACKOFF == [value / 1000 for value in shared["RECONNECT_BACKOFF_MS"]]
 
 
 def test_errors_match_shared_artifact() -> None:
     shared = json.loads((ROOT / "shared" / "errors.json").read_text(encoding="utf-8"))
 
-    assert len(shared["errors"]) == 25
+    assert len(shared["errors"]) == 27
     for entry in shared["errors"]:
         resolved = lookup_error(entry["code"])
         assert resolved is not None
