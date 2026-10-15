@@ -108,6 +108,16 @@ def test_runtime_answer_schema(vector: dict[str, Any]) -> None:
     assert _validator("chat.answer.json").is_valid(vector["payload"]) is vector["valid"]
 
 
+@pytest.mark.parametrize("vector", FIXTURE["runtime_partial_schema_cases"], ids=lambda v: v["name"])
+def test_runtime_partial_schema(vector: dict[str, Any]) -> None:
+    assert _validator("chat.partial.json").is_valid(vector["payload"]) is vector["valid"]
+
+
+@pytest.mark.parametrize("vector", FIXTURE["runtime_echo_schema_cases"], ids=lambda v: v["name"])
+def test_runtime_echo_schema(vector: dict[str, Any]) -> None:
+    assert _validator("chat.echo.json").is_valid(vector["payload"]) is vector["valid"]
+
+
 def test_unbound_file_list_entries_are_kept() -> None:
     files = [entry["descriptor"] for entry in FIXTURE["unbound_list_entries"]]
     assert _validator("file.list.result.json").is_valid({"files": files, "total": len(files)})
@@ -242,7 +252,7 @@ class SessionFileFake:
             self.drop_next_echo = False
             return
         hostile_echo = [{**d, "file_id": f"fi_{i}", "snapshot_id": f"sn_{i}"} for i, d in enumerate(bound)]
-        await send({"type": "chat::echo", "payload": {"content": payload.get("content"), "role": "user", "meta": {"client_msg_id": client_msg_id, "attachments": hostile_echo}}})
+        await send({"type": "chat::echo", "payload": {"content": [payload.get("content")], "role": "user", "meta": {"client_msg_id": client_msg_id, "attachments": hostile_echo}}})
         outputs = [f["descriptor"] for f in OUTPUTS]
         await send({"type": "chat::answer", "payload": {**MESSAGES["chat_answer"], "meta": {
             "billing": {"summary": {"authoritative": False}},
@@ -371,10 +381,14 @@ async def test_attachment_and_download_errors_do_not_fail_the_session() -> None:
 
 
 @pytest.mark.asyncio
-async def test_mock_server_refuses_legacy_answer_shape() -> None:
+@pytest.mark.parametrize(("message_type", "payload"), [
+    ("chat::answer", {"content": "legacy", "role": "assistant", "answer_kind": "final", "turn_id": "turn_1"}),
+    ("chat::partial", {"content": "legacy", "role": "assistant", "turn_id": "turn_1"}),
+    ("chat::echo", {"content": "legacy", "role": "user", "turn_id": "turn_1"}),
+])
+async def test_mock_server_refuses_legacy_chat_shapes(message_type: str, payload: dict[str, Any]) -> None:
     server = await start_mock_server()
-    with pytest.raises(AssertionError, match="non-Runtime chat::answer"):
-        await server.broadcast({"type": "chat::answer", "schema": "1.0", "ts": "",
-                                "payload": {"content": "legacy", "role": "assistant", "answer_kind": "final", "turn_id": "turn_1"}})
+    with pytest.raises(AssertionError, match=f"non-Runtime {message_type}"):
+        await server.broadcast({"type": message_type, "schema": "1.0", "ts": "", "payload": payload})
     with pytest.raises(AssertionError, match="schema violations"):
         await server.close()

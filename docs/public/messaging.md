@@ -122,26 +122,26 @@ Every message has the same outer structure:
 
 ### `chat::partial`
 
-A streaming chunk of an answer that is still being generated. Multiple `chat::partial` messages may arrive before the final `chat::answer`. They share the same `turn_id` in the payload.
+A streaming chunk of an answer that is still being generated. Multiple `chat::partial` messages may arrive before the final `chat::answer`. They carry the same integer `turn` as the final answer of that turn.
 
 Relevant payload fields:
 
 | Field | Type | Description |
 |---|---|---|
-| `content` | string | The text chunk. Append these to build the full answer incrementally. |
-| `turn_id` | string | Groups all chunks and the final answer belonging to the same turn. |
+| `content` | string[] | Text blocks of the chunk, in order. Append these to build the full answer incrementally. |
+| `turn` | integer (optional) | Turn number shared by all chunks and the final `chat::answer` of the same turn. |
 
 ```js
 // JavaScript (Browser and Node.js)
 if (msg.type === "chat::partial") {
-  process.stdout.write(msg.payload.content); // append chunk to output
+  process.stdout.write(msg.payload.content.join("")); // append chunk to output
 }
 ```
 
 ```python
 # Python
 if msg["type"] == "chat::partial":
-    print(msg["payload"]["content"], end="", flush=True)
+    print("".join(msg["payload"]["content"]), end="", flush=True)
 ```
 
 ### `chat::answer`
@@ -237,7 +237,7 @@ const client = new CortexClient({
   onMessage: (msg) => {
     switch (msg.type) {
       case "chat::partial":
-        streamBuffer += msg.payload.content;
+        streamBuffer += msg.payload.content.join("");
         renderStreamingAnswer(streamBuffer);
         break;
 
@@ -279,7 +279,7 @@ def on_message(msg):
     payload = msg["payload"]
 
     if msg_type == "chat::partial":
-        stream_buffer.append(payload["content"])
+        stream_buffer.extend(payload["content"])
         render_streaming_answer("".join(stream_buffer))
 
     elif msg_type == "chat::answer":

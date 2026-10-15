@@ -160,6 +160,12 @@ The `fi_`/`sn_` value prefixes are rejected only in identity/credential fields (
 **Found (SDK #2 follow-up):** Runtime `ChatPartialPayload` and `ChatEchoPayload` also serialize an integer `turn`,
 `list[str]` content and drop `turn_id`, while `schema/chat.partial.json` still requires a string `turn_id`
 and string `content`.
-**Decision taken:** Not changed in the SDK #2 follow-up (owner scoped the correction to `chat::answer`).
-Generated files bind only to answers, so this does not affect file ownership.
-**Owner action needed:** Decide whether `chat.partial.json` (and the echo `turn`) move to the Runtime shape.
+**Decision taken (owner GO 2026-10-15, resolved):** both schemas follow the Runtime serialization strictly.
+`chat.partial.json`: `content: string[]`, `role: assistant`, optional non-negative integer `turn`, no `turn_id`,
+no `meta` (a partial owns no files). `chat.echo.json`: `content: string[]` (no legacy `message`), `role` in
+`user|operator`, optional non-negative integer `turn`, no `turn_id`, `meta` passes through; `meta.attachments`
+stays user/inbound bound to `meta.client_msg_id`, and an operator echo (escalation reply) carries and owns no
+files. Partials correlate with their final `chat::answer` by the integer `turn`. Shared vectors:
+`contracts/session_file_attachments_v1.json` `runtime_partial_schema_cases` / `runtime_echo_schema_cases`;
+mock servers in both bindings reject any other answer, partial or echo shape they are asked to send.
+**Owner action needed:** None.

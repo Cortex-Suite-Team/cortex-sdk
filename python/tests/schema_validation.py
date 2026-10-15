@@ -75,15 +75,24 @@ def validate_outbound_envelope(envelope: dict[str, object]) -> list[SchemaViolat
     return violations
 
 
-def validate_server_answer(envelope: dict[str, object]) -> list[str]:
-    """Server-sent chat::answer payloads must match the Runtime serialization pinned
-    in chat.answer.json, so test doubles cannot drift from the real wire shape.
-    meta.attachments is left out: adversarial attachment tests send hostile
-    descriptors on purpose and have their own vectors."""
-    if envelope.get("type") != "chat::answer":
+RUNTIME_CHAT_SCHEMA_MAP: dict[str, str] = {
+    "chat::answer": "chat.answer.json",
+    "chat::partial": "chat.partial.json",
+    "chat::echo": "chat.echo.json",
+}
+
+
+def validate_server_chat_payload(envelope: dict[str, object]) -> list[str]:
+    """Server-sent chat::answer/chat::partial/chat::echo payloads must match the
+    Runtime serialization pinned in the shared schemas, so test doubles cannot drift
+    from the real wire shape. meta.attachments is left out: adversarial attachment
+    tests send hostile descriptors on purpose and have their own vectors."""
+    message_type = envelope.get("type")
+    schema_name = RUNTIME_CHAT_SCHEMA_MAP.get(message_type) if isinstance(message_type, str) else None
+    if schema_name is None:
         return []
     payload = envelope.get("payload")
     if isinstance(payload, dict) and isinstance(payload.get("meta"), dict):
         payload = {**payload, "meta": {k: v for k, v in payload["meta"].items() if k != "attachments"}}
-    errors = sorted(_load_validator("chat.answer.json").iter_errors(payload), key=str)
-    return _format_errors(errors)
+    errors = sorted(_load_validator(schema_name).iter_errors(payload), key=str)
+    return [f"{message_type} {error}" for error in _format_errors(errors)]

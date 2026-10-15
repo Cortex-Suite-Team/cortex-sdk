@@ -28,14 +28,14 @@ describe('streaming_chat', () => {
             ts: new Date().toISOString(),
           });
           srv.sendTo(ws, makeEnv('chat::partial', {
-            content: 'Quantum entanglement is ',
+            content: ['Quantum entanglement is '],
             role: 'assistant',
-            turn_id: 'turn_002',
+            turn: 2,
           }));
           srv.sendTo(ws, makeEnv('chat::partial', {
-            content: 'a phenomenon where two particles ',
+            content: ['a phenomenon where two particles '],
             role: 'assistant',
-            turn_id: 'turn_002',
+            turn: 2,
           }));
           srv.sendTo(ws, makeEnv('chat::answer', {
             content: ['Quantum entanglement is a phenomenon where two particles remain correlated regardless of distance.'],
@@ -62,11 +62,16 @@ describe('streaming_chat', () => {
       const answer = received.find(m => m.type === 'chat::answer' && m.payload['answer_kind'] === 'final')!;
 
       expect(partials).toHaveLength(2);
-      expect(partials[0].payload['content']).toBe('Quantum entanglement is ');
-      expect(partials[1].payload['content']).toBe('a phenomenon where two particles ');
-      expect(partials[0].payload['turn_id']).toBe('turn_002');
-      expect(partials[1].payload['turn_id']).toBe('turn_002');
+      expect(partials[0].payload['content']).toEqual(['Quantum entanglement is ']);
+      expect(partials[1].payload['content']).toEqual(['a phenomenon where two particles ']);
+      // Runtime correlates partials with their final answer by the integer turn only.
       expect(answer.payload['turn']).toBe(2);
+      for (const partial of partials) {
+        expect(partial.payload['turn']).toBe(answer.payload['turn']);
+        expect(partial.payload).not.toHaveProperty('turn_id');
+      }
+      const streamed = partials.flatMap((p) => p.payload['content'] as string[]).join('');
+      expect((answer.payload['content'] as string[]).join('').startsWith(streamed)).toBe(true);
       expect(answer.payload['answer_kind']).toBe('final');
       expect(received.filter(m => m.type === 'chat::partial' || m.type === 'chat::answer').length)
         .toBeGreaterThanOrEqual(3);

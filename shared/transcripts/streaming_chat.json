@@ -38,9 +38,9 @@
       "direction": "server",
       "type": "chat::partial",
       "payload": {
-        "content": "Quantum entanglement is ",
+        "content": ["Quantum entanglement is "],
         "role": "assistant",
-        "turn_id": "turn_002"
+        "turn": 2
       },
       "note": "session_id: sess_abc123, seq: 2 — first streaming chunk"
     },
@@ -48,9 +48,9 @@
       "direction": "server",
       "type": "chat::partial",
       "payload": {
-        "content": "a phenomenon where two particles ",
+        "content": ["a phenomenon where two particles "],
         "role": "assistant",
-        "turn_id": "turn_002"
+        "turn": 2
       },
       "note": "session_id: sess_abc123, seq: 3 — second streaming chunk"
     },
@@ -63,7 +63,7 @@
         "answer_kind": "final",
         "turn": 2
       },
-      "note": "session_id: sess_abc123, seq: 4 — final answer terminates the stream; turn_id matches partials"
+      "note": "session_id: sess_abc123, seq: 4 — final answer terminates the stream; its turn matches the partials' turn"
     }
   ]
 }

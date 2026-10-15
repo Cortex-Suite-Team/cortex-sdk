@@ -106,7 +106,7 @@ const client = new CortexClient({
   apiKey: "your-api-key",
   onMessage: (msg) => {
     if (msg.type === "chat::partial") {
-      process.stdout.write(msg.payload.content); // stream chunk to output
+      process.stdout.write(msg.payload.content.join("")); // stream chunk to output
     } else if (msg.type === "chat::answer") {
       console.log("\n[Done]", msg.payload.content.join(""));
     } else if (msg.type === "system::error") {
@@ -126,7 +126,7 @@ from cortex_sdk import CortexClient
 
 def on_message(msg):
     if msg["type"] == "chat::partial":
-        print(msg["payload"]["content"], end="", flush=True)
+        print("".join(msg["payload"]["content"]), end="", flush=True)
     elif msg["type"] == "chat::answer":
         print("\n[Done]", "".join(msg["payload"]["content"]))
     elif msg["type"] == "system::error":

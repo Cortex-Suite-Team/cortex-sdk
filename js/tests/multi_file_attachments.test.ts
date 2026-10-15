@@ -96,6 +96,16 @@ describe('session file attachments contract fixture', () => {
     expect([vector.name, validate(vector.payload)]).toEqual([vector.name, vector.valid]);
   });
 
+  it.each(fixture.runtime_partial_schema_cases.map((c) => [c.name, c] as const))('Runtime chat::partial schema: %s', (_name, vector) => {
+    const validate = schema('chat.partial.json');
+    expect([vector.name, validate(vector.payload)]).toEqual([vector.name, vector.valid]);
+  });
+
+  it.each(fixture.runtime_echo_schema_cases.map((c) => [c.name, c] as const))('Runtime chat::echo schema: %s', (_name, vector) => {
+    const validate = schema('chat.echo.json');
+    expect([vector.name, validate(vector.payload)]).toEqual([vector.name, vector.valid]);
+  });
+
   it('keeps legitimate unbound entries in file::list', () => {
     const files = fixture.unbound_list_entries.map((entry) => entry.descriptor);
     expect(schema('file.list.result.json')({ files, total: files.length })).toBe(true);
@@ -270,13 +280,14 @@ describe('EA 3-input / 2-output session files over the SDK WebSocket', () => {
   });
 });
 
-describe('test doubles follow the Runtime chat::answer shape', () => {
-  it('mock server refuses a legacy turn_id / string-content answer', async () => {
+describe('test doubles follow the Runtime chat payload shapes', () => {
+  it.each([
+    ['chat::answer', { content: 'legacy', role: 'assistant', answer_kind: 'final', turn_id: 'turn_1' }],
+    ['chat::partial', { content: 'legacy', role: 'assistant', turn_id: 'turn_1' }],
+    ['chat::echo', { content: 'legacy', role: 'user', turn_id: 'turn_1' }],
+  ] as const)('mock server refuses a legacy turn_id / string-content %s', async (type, payload) => {
     const server = await startMockServer({});
-    expect(() => server.broadcast({
-      type: 'chat::answer', schema: '1.0', ts: new Date().toISOString(),
-      payload: { content: 'legacy', role: 'assistant', answer_kind: 'final', turn_id: 'turn_1' },
-    })).toThrow(/non-Runtime chat::answer/);
+    expect(() => server.broadcast({ type, schema: '1.0', ts: new Date().toISOString(), payload })).toThrow(new RegExp(`non-Runtime ${type}`));
     await expect(server.close()).rejects.toThrow(/schema violations/);
   });
 });

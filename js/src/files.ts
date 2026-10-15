@@ -153,7 +153,7 @@ interface MessageFileBinding {
 
 function messageFileBinding(message: CortexMessage): MessageFileBinding | null {
   const payload = message.payload ?? {};
-  if (message.type === 'chat::answer' || message.type === 'chat::partial') {
+  if (message.type === 'chat::answer') {
     return {
       ownerRole: 'assistant',
       direction: 'outbound',
@@ -161,6 +161,8 @@ function messageFileBinding(message: CortexMessage): MessageFileBinding | null {
       messageRef: turnIdentity(payload),
     };
   }
+  // Runtime also echoes operator escalation replies; only a user echo owns user files.
+  if (message.type === 'chat::echo' && payload['role'] !== 'user') return null;
   if (message.type === 'chat::echo' || message.type === 'chat::message') {
     const meta = asRecord(payload['meta']);
     const clientMsgId = meta?.['client_msg_id'];

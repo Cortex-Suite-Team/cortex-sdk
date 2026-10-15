@@ -38,7 +38,7 @@ async def test_session_moves_to_active_when_runtime_assigns_session_id() -> None
     assert session.session_state == "INITIALIZING"
 
     session.handle_incoming(make_server_message("chat::echo", {
-        "content": "init ack",
+        "content": ["init ack"],
         "role": "user",
     }))
 

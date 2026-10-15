@@ -148,8 +148,11 @@ def _message_file_binding(message: Mapping[str, object]) -> tuple[str, str, str,
     payload = message.get("payload")
     payload = payload if isinstance(payload, dict) else {}
     message_type = message.get("type")
-    if message_type in ("chat::answer", "chat::partial"):
+    if message_type == "chat::answer":
         return "assistant", "outbound", "turn", _turn_identity(payload)
+    # Runtime also echoes operator escalation replies; only a user echo owns user files.
+    if message_type == "chat::echo" and payload.get("role") != "user":
+        return None
     if message_type in ("chat::echo", "chat::message"):
         meta = payload.get("meta")
         client_msg_id = meta.get("client_msg_id") if isinstance(meta, dict) else None

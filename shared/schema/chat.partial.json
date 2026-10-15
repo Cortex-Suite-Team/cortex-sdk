@@ -2,22 +2,24 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://cortex.local/sdk/schema/chat.partial.json",
   "title": "chat::partial Payload",
-  "description": "Streaming chunk of an in-progress answer. Multiple partials share the same turn_id and are followed by a chat::answer with answer_kind=final.",
+  "description": "Streaming chunk of an in-progress answer as serialized by Runtime ChatPartialPayload.to_dict(). Partials of one turn carry the same integer turn as the chat::answer (answer_kind=final) that follows them. A partial carries no meta and owns no files.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["content", "role", "turn_id"],
+  "required": ["content", "role"],
   "properties": {
     "content": {
-      "type": "string",
-      "description": "Partial assistant content chunk"
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Partial answer text blocks, in order"
     },
     "role": {
       "type": "string",
       "const": "assistant"
     },
-    "turn_id": {
-      "type": "string",
-      "description": "Turn correlation id; matches the subsequent chat::answer"
+    "turn": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Turn number; matches the turn of the subsequent chat::answer. Absent when the partial is not tied to a turn"
     }
   }
 }

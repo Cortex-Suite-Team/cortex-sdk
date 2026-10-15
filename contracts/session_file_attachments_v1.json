@@ -59,7 +59,7 @@
   "message_binding": {
     "user_message": "user/inbound descriptors belong to the chat::message whose meta.client_msg_id equals descriptor.message_ref (message_ref_kind=client_msg_id); they are echoed in chat::echo payload.meta.attachments",
     "assistant_answer": "assistant/outbound descriptors belong to the chat::answer whose String(payload.turn) equals descriptor.message_ref (message_ref_kind=turn); they arrive in that answer's payload.meta.attachments. An answer without a turn owns no files",
-    "strict": "a bound message attachment needs both message_ref and message_ref_kind matching the message's trusted identity; missing identity on either side drops the file. Message types other than chat::answer/chat::partial/chat::echo/chat::message own no files. file::list entries may be unbound",
+    "strict": "a bound message attachment needs both message_ref and message_ref_kind matching the message's trusted identity; missing identity on either side drops the file. Only chat::answer, user chat::echo (role=user) and chat::message own files; chat::partial carries no meta, an operator chat::echo owns no files, and other message types own no files. file::list entries may be unbound",
     "inherited_user_files": "a user/inbound descriptor inside an assistant answer (Runtime continue-from-wait re-exports the user's meta) is never an assistant attachment and is excluded"
   },
   "session_id": "sess_ea_multi_001",
@@ -165,7 +165,9 @@
       }
     },
     "chat_echo": {
-      "content": "Compare the attached revenue files.",
+      "content": [
+        "Compare the attached revenue files."
+      ],
       "role": "user",
       "meta": {
         "client_msg_id": "cli_msg_ea_3in_2out",
@@ -1303,10 +1305,50 @@
       "expected_refs": []
     },
     {
+      "name": "partial_same_turn_owns_no_files",
+      "type": "chat::partial",
+      "payload": {
+        "content": [
+          "Here"
+        ],
+        "role": "assistant",
+        "turn": 7,
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
+        }
+      },
+      "expected_refs": []
+    },
+    {
       "name": "echo_assistant_file",
       "type": "chat::echo",
       "payload": {
-        "content": "Compare the attached revenue files.",
+        "content": [
+          "Compare the attached revenue files."
+        ],
         "role": "user",
         "meta": {
           "client_msg_id": "cli_msg_ea_3in_2out",
@@ -1344,7 +1386,9 @@
       "name": "echo_wrong_client_msg_id",
       "type": "chat::echo",
       "payload": {
-        "content": "Compare the attached revenue files.",
+        "content": [
+          "Compare the attached revenue files."
+        ],
         "role": "user",
         "meta": {
           "client_msg_id": "cli_msg_ea_3in_2out",
@@ -1382,7 +1426,9 @@
       "name": "echo_missing_message_ref",
       "type": "chat::echo",
       "payload": {
-        "content": "Compare the attached revenue files.",
+        "content": [
+          "Compare the attached revenue files."
+        ],
         "role": "user",
         "meta": {
           "client_msg_id": "cli_msg_ea_3in_2out",
@@ -1419,7 +1465,9 @@
       "name": "echo_missing_message_ref_kind",
       "type": "chat::echo",
       "payload": {
-        "content": "Compare the attached revenue files.",
+        "content": [
+          "Compare the attached revenue files."
+        ],
         "role": "user",
         "meta": {
           "client_msg_id": "cli_msg_ea_3in_2out",
@@ -1456,7 +1504,9 @@
       "name": "echo_without_client_msg_id_owns_no_files",
       "type": "chat::echo",
       "payload": {
-        "content": "x",
+        "content": [
+          "x"
+        ],
         "role": "user",
         "meta": {
           "attachments": [
@@ -1528,6 +1578,56 @@
               "state": "available",
               "message_ref": "7",
               "message_ref_kind": "turn"
+            }
+          ]
+        }
+      },
+      "expected_refs": []
+    },
+    {
+      "name": "operator_echo_owns_no_files",
+      "type": "chat::echo",
+      "payload": {
+        "content": [
+          "Operator reply"
+        ],
+        "role": "operator",
+        "meta": {
+          "client_msg_id": "cli_msg_ea_3in_2out",
+          "source": "operator_reply",
+          "attachments": [
+            {
+              "file_ref": "sf_in_01HZY1",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_01HZY2",
+              "filename": "brief.md",
+              "content_type": "text/markdown",
+              "size": 60,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_01HZY3",
+              "filename": "appendix.bin",
+              "content_type": "application/octet-stream",
+              "size": 256,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
             }
           ]
         }
@@ -2044,6 +2144,755 @@
           "attachments": [
             {
               "file_ref": "sf_in_01HZY1",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "runtime_partial_schema_cases": [
+    {
+      "name": "runtime_partial",
+      "valid": true,
+      "payload": {
+        "content": [
+          "Here is "
+        ],
+        "role": "assistant",
+        "turn": 7
+      }
+    },
+    {
+      "name": "turn_zero",
+      "valid": true,
+      "payload": {
+        "content": [
+          "a",
+          "b"
+        ],
+        "role": "assistant",
+        "turn": 0
+      }
+    },
+    {
+      "name": "no_turn",
+      "valid": true,
+      "payload": {
+        "content": [
+          "chunk"
+        ],
+        "role": "assistant"
+      }
+    },
+    {
+      "name": "empty_content",
+      "valid": true,
+      "payload": {
+        "content": [],
+        "role": "assistant",
+        "turn": 7
+      }
+    },
+    {
+      "name": "legacy_turn_id",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Here is "
+        ],
+        "role": "assistant",
+        "turn_id": "turn_7"
+      }
+    },
+    {
+      "name": "legacy_turn_id_with_turn",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Here is "
+        ],
+        "role": "assistant",
+        "turn": 7,
+        "turn_id": "7"
+      }
+    },
+    {
+      "name": "string_content",
+      "valid": false,
+      "payload": {
+        "content": "Here is ",
+        "role": "assistant",
+        "turn": 7
+      }
+    },
+    {
+      "name": "non_string_block",
+      "valid": false,
+      "payload": {
+        "content": [
+          "a",
+          1
+        ],
+        "role": "assistant",
+        "turn": 7
+      }
+    },
+    {
+      "name": "string_turn",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Here is "
+        ],
+        "role": "assistant",
+        "turn": "7"
+      }
+    },
+    {
+      "name": "negative_turn",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Here is "
+        ],
+        "role": "assistant",
+        "turn": -1
+      }
+    },
+    {
+      "name": "fractional_turn",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Here is "
+        ],
+        "role": "assistant",
+        "turn": 7.5
+      }
+    },
+    {
+      "name": "boolean_turn",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Here is "
+        ],
+        "role": "assistant",
+        "turn": true
+      }
+    },
+    {
+      "name": "user_role",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Here is "
+        ],
+        "role": "user",
+        "turn": 7
+      }
+    },
+    {
+      "name": "missing_role",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Here is "
+        ],
+        "turn": 7
+      }
+    },
+    {
+      "name": "missing_content",
+      "valid": false,
+      "payload": {
+        "role": "assistant",
+        "turn": 7
+      }
+    },
+    {
+      "name": "meta_not_serialized",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Here is "
+        ],
+        "role": "assistant",
+        "turn": 7,
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "runtime_echo_schema_cases": [
+    {
+      "name": "user_echo_with_files",
+      "valid": true,
+      "payload": {
+        "content": [
+          "Compare the attached revenue files."
+        ],
+        "role": "user",
+        "meta": {
+          "client_msg_id": "cli_msg_ea_3in_2out",
+          "attachments": [
+            {
+              "file_ref": "sf_in_01HZY1",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_01HZY2",
+              "filename": "brief.md",
+              "content_type": "text/markdown",
+              "size": 60,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_01HZY3",
+              "filename": "appendix.bin",
+              "content_type": "application/octet-stream",
+              "size": 256,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "user_echo_with_turn",
+      "valid": true,
+      "payload": {
+        "content": [
+          "Compare the attached revenue files."
+        ],
+        "role": "user",
+        "meta": {
+          "client_msg_id": "cli_msg_ea_3in_2out",
+          "attachments": [
+            {
+              "file_ref": "sf_in_01HZY1",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_01HZY2",
+              "filename": "brief.md",
+              "content_type": "text/markdown",
+              "size": 60,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_01HZY3",
+              "filename": "appendix.bin",
+              "content_type": "application/octet-stream",
+              "size": 256,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            }
+          ]
+        },
+        "turn": 7
+      }
+    },
+    {
+      "name": "init_echo_empty_content",
+      "valid": true,
+      "payload": {
+        "content": [],
+        "role": "user"
+      }
+    },
+    {
+      "name": "operator_echo",
+      "valid": true,
+      "payload": {
+        "content": [
+          "Operator reply"
+        ],
+        "role": "operator",
+        "meta": {
+          "actor": {
+            "kind": "operator"
+          },
+          "source": "operator_reply",
+          "escalation_id": "esc_1"
+        }
+      }
+    },
+    {
+      "name": "legacy_turn_id",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Compare the attached revenue files."
+        ],
+        "role": "user",
+        "meta": {
+          "client_msg_id": "cli_msg_ea_3in_2out",
+          "attachments": [
+            {
+              "file_ref": "sf_in_01HZY1",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_01HZY2",
+              "filename": "brief.md",
+              "content_type": "text/markdown",
+              "size": 60,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_01HZY3",
+              "filename": "appendix.bin",
+              "content_type": "application/octet-stream",
+              "size": 256,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            }
+          ]
+        },
+        "turn_id": "turn_7"
+      }
+    },
+    {
+      "name": "string_content",
+      "valid": false,
+      "payload": {
+        "content": "Compare the attached revenue files.",
+        "role": "user",
+        "meta": {
+          "client_msg_id": "cli_msg_ea_3in_2out",
+          "attachments": [
+            {
+              "file_ref": "sf_in_01HZY1",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_01HZY2",
+              "filename": "brief.md",
+              "content_type": "text/markdown",
+              "size": 60,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_01HZY3",
+              "filename": "appendix.bin",
+              "content_type": "application/octet-stream",
+              "size": 256,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "legacy_message_only",
+      "valid": false,
+      "payload": {
+        "message": {
+          "text": "Compare"
+        },
+        "role": "user"
+      }
+    },
+    {
+      "name": "missing_content",
+      "valid": false,
+      "payload": {
+        "role": "user",
+        "meta": {
+          "client_msg_id": "cli_msg_ea_3in_2out"
+        }
+      }
+    },
+    {
+      "name": "string_turn",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Compare the attached revenue files."
+        ],
+        "role": "user",
+        "meta": {
+          "client_msg_id": "cli_msg_ea_3in_2out",
+          "attachments": [
+            {
+              "file_ref": "sf_in_01HZY1",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_01HZY2",
+              "filename": "brief.md",
+              "content_type": "text/markdown",
+              "size": 60,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_01HZY3",
+              "filename": "appendix.bin",
+              "content_type": "application/octet-stream",
+              "size": 256,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            }
+          ]
+        },
+        "turn": "7"
+      }
+    },
+    {
+      "name": "negative_turn",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Compare the attached revenue files."
+        ],
+        "role": "user",
+        "meta": {
+          "client_msg_id": "cli_msg_ea_3in_2out",
+          "attachments": [
+            {
+              "file_ref": "sf_in_01HZY1",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_01HZY2",
+              "filename": "brief.md",
+              "content_type": "text/markdown",
+              "size": 60,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_01HZY3",
+              "filename": "appendix.bin",
+              "content_type": "application/octet-stream",
+              "size": 256,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            }
+          ]
+        },
+        "turn": -1
+      }
+    },
+    {
+      "name": "assistant_role",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Compare the attached revenue files."
+        ],
+        "role": "assistant",
+        "meta": {
+          "client_msg_id": "cli_msg_ea_3in_2out",
+          "attachments": [
+            {
+              "file_ref": "sf_in_01HZY1",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_01HZY2",
+              "filename": "brief.md",
+              "content_type": "text/markdown",
+              "size": 60,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_01HZY3",
+              "filename": "appendix.bin",
+              "content_type": "application/octet-stream",
+              "size": 256,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "assistant_file_in_user_echo",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Compare the attached revenue files."
+        ],
+        "role": "user",
+        "meta": {
+          "client_msg_id": "cli_msg_ea_3in_2out",
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "operator_echo_with_files",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Operator reply"
+        ],
+        "role": "operator",
+        "meta": {
+          "client_msg_id": "cli_msg_ea_3in_2out",
+          "attachments": [
+            {
+              "file_ref": "sf_in_01HZY1",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "too_many_files",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Compare the attached revenue files."
+        ],
+        "role": "user",
+        "meta": {
+          "client_msg_id": "cli_msg_ea_3in_2out",
+          "attachments": [
+            {
+              "file_ref": "sf_in_x0",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_x1",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_x2",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_x3",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_x4",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_x5",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_x6",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_x7",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_x8",
               "filename": "revenue.csv",
               "content_type": "text/csv",
               "size": 40,

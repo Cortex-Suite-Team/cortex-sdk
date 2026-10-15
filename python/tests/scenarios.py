@@ -148,14 +148,14 @@ async def run_streaming_chat_scenario(schema_validation: bool = False) -> Scenar
                 return envelope
 
             await srv.send_to(ws, env("chat::partial", {
-                "content": "Quantum entanglement is ",
+                "content": ["Quantum entanglement is "],
                 "role": "assistant",
-                "turn_id": "turn_002",
+                "turn": 2,
             }))
             await srv.send_to(ws, env("chat::partial", {
-                "content": "a phenomenon where two particles ",
+                "content": ["a phenomenon where two particles "],
                 "role": "assistant",
-                "turn_id": "turn_002",
+                "turn": 2,
             }))
             await srv.send_to(ws, env("chat::answer", {
                 "content": ["Quantum entanglement is a phenomenon where two particles remain correlated regardless of distance."],

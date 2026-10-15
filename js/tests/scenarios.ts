@@ -126,14 +126,14 @@ export async function runStreamingChatScenario(options: ScenarioOptions = {}): P
           ts: new Date().toISOString(),
         });
         srv.sendTo(ws, makeEnv('chat::partial', {
-          content: 'Quantum entanglement is ',
+          content: ['Quantum entanglement is '],
           role: 'assistant',
-          turn_id: 'turn_002',
+          turn: 2,
         }));
         srv.sendTo(ws, makeEnv('chat::partial', {
-          content: 'a phenomenon where two particles ',
+          content: ['a phenomenon where two particles '],
           role: 'assistant',
-          turn_id: 'turn_002',
+          turn: 2,
         }));
         srv.sendTo(ws, makeEnv('chat::answer', {
           content: ['Quantum entanglement is a phenomenon where two particles remain correlated regardless of distance.'],

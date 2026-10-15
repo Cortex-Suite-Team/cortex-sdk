@@ -38,17 +38,17 @@ async def test_streaming_chat() -> None:
                 return e
 
             await srv.send_to(ws, env("chat::partial", {
-                "content": "Quantum entanglement is ",
+                "content": ["Quantum entanglement is "],
                 "role": "assistant",
-                "turn_id": "turn_002",
+                "turn": 2,
             }))
             await srv.send_to(ws, env("chat::partial", {
-                "content": "a phenomenon where two particles ",
+                "content": ["a phenomenon where two particles "],
                 "role": "assistant",
-                "turn_id": "turn_002",
+                "turn": 2,
             }))
             await srv.send_to(ws, env("chat::answer", {
-                "content": ["Quantum entanglement is a phenomenon ..."],
+                "content": ["Quantum entanglement is a phenomenon where two particles remain correlated regardless of distance."],
                 "role": "assistant",
                 "answer_kind": "final",
                 "turn": 2,
@@ -84,11 +84,15 @@ async def test_streaming_chat() -> None:
         )
 
         assert len(partials) == 2
-        assert partials[0]["payload"]["content"] == "Quantum entanglement is "
-        assert partials[1]["payload"]["content"] == "a phenomenon where two particles "
-        assert partials[0]["payload"]["turn_id"] == "turn_002"
-        assert partials[1]["payload"]["turn_id"] == "turn_002"
+        assert partials[0]["payload"]["content"] == ["Quantum entanglement is "]
+        assert partials[1]["payload"]["content"] == ["a phenomenon where two particles "]
+        # Runtime correlates partials with their final answer by the integer turn only.
         assert answer["payload"]["turn"] == 2
+        for partial in partials:
+            assert partial["payload"]["turn"] == answer["payload"]["turn"]
+            assert "turn_id" not in partial["payload"]
+        streamed = "".join(block for p in partials for block in p["payload"]["content"])
+        assert "".join(answer["payload"]["content"]).startswith(streamed)
         assert answer["payload"]["answer_kind"] == "final"
         # callback was invoked for each message
         assert len([m for m in received if m["type"] in ("chat::partial", "chat::answer")]) >= 3

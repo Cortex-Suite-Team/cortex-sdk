@@ -30,6 +30,8 @@ export interface Fixture {
   hostile_descriptors: Array<{ name: string; input: unknown; expected: SessionFileDescriptor | null }>;
   message_projection_cases: Array<{ name: string; type: string; payload: Record<string, unknown>; expected_refs: string[] }>;
   runtime_answer_schema_cases: Array<{ name: string; valid: boolean; payload: Record<string, unknown> }>;
+  runtime_partial_schema_cases: Array<{ name: string; valid: boolean; payload: Record<string, unknown> }>;
+  runtime_echo_schema_cases: Array<{ name: string; valid: boolean; payload: Record<string, unknown> }>;
   unbound_list_entries: Array<{ name: string; descriptor: Record<string, unknown> }>;
 }
 
@@ -130,7 +132,7 @@ export class SessionFileFake {
     if (bound.length === 0) return;
     if (this.dropNextEcho) { this.dropNextEcho = false; return; }
     // Hostile upstream: internal identity/URLs next to sf_ refs and an inherited user upload in the answer.
-    send({ type: 'chat::echo', payload: { content: payload['content'], role: 'user', meta: { client_msg_id: clientMsgId, attachments: bound.map((d, i) => ({ ...d, file_id: `fi_${i}`, snapshot_id: `sn_${i}` })) } } });
+    send({ type: 'chat::echo', payload: { content: [payload['content']], role: 'user', meta: { client_msg_id: clientMsgId, attachments: bound.map((d, i) => ({ ...d, file_id: `fi_${i}`, snapshot_id: `sn_${i}` })) } } });
     const outputs = fixture.outputs.map((file) => file.descriptor);
     send({
       type: 'chat::answer',
