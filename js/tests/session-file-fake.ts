@@ -15,7 +15,8 @@ export interface Fixture {
   limits: { max_attachments_per_message: number };
   public_descriptor_fields: string[];
   client_msg_id: string;
-  turn_id: string;
+  turn: number;
+  turn_ref: string;
   inputs: FixtureFile[];
   outputs: FixtureFile[];
   messages: {
@@ -27,8 +28,9 @@ export interface Fixture {
   send_rejections: Array<{ name: string; attachments: unknown[]; error_code: string }>;
   server_attachment_errors: Array<{ name: string; payload: { code: string; message: string }; retryable: boolean; fatal: boolean }>;
   hostile_descriptors: Array<{ name: string; input: unknown; expected: SessionFileDescriptor | null }>;
-  answer_projection_cases: Array<{ name: string; attachments: unknown; expected_refs: string[] }>;
-  echo_projection_cases: Array<{ name: string; attachments: unknown; expected_refs: string[] }>;
+  message_projection_cases: Array<{ name: string; type: string; payload: Record<string, unknown>; expected_refs: string[] }>;
+  runtime_answer_schema_cases: Array<{ name: string; valid: boolean; payload: Record<string, unknown> }>;
+  unbound_list_entries: Array<{ name: string; descriptor: Record<string, unknown> }>;
 }
 
 export const fixture = JSON.parse(

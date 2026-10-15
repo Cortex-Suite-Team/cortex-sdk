@@ -38,10 +38,10 @@
       "direction": "server",
       "type": "chat::answer",
       "payload": {
-        "content": "Response to first message",
+        "content": ["Response to first message"],
         "role": "assistant",
         "answer_kind": "final",
-        "turn_id": "turn_004"
+        "turn": 4
       },
       "note": "session_id: sess_abc123, seq: 2"
     },
@@ -76,10 +76,10 @@
       "direction": "server",
       "type": "chat::answer",
       "payload": {
-        "content": "Response to second message",
+        "content": ["Response to second message"],
         "role": "assistant",
         "answer_kind": "final",
-        "turn_id": "turn_005"
+        "turn": 5
       },
       "note": "session_id: sess_abc123, seq: 3 — session uninterrupted across token refresh"
     }

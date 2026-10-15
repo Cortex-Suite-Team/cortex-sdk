@@ -25,10 +25,10 @@ async def test_file_upload() -> None:
                 "session_id": FIXED_SESSION_ID,
                 "seq": 1,
                 "payload": {
-                    "content": "The document covers three main topics.",
+                    "content": ["The document covers three main topics."],
                     "role": "assistant",
                     "answer_kind": "final",
-                    "turn_id": "turn_006",
+                    "turn": 6,
                 },
                 "ts": "2026-04-04T00:00:00Z",
             })
@@ -112,7 +112,7 @@ async def test_file_upload() -> None:
             m for m in received
             if m["type"] == "chat::answer" and m["payload"].get("answer_kind") == "final"
         )
-        assert answer["payload"]["turn_id"] == "turn_006"
+        assert answer["payload"]["turn"] == 6
     finally:
         await client.disconnect()
         await server.close()

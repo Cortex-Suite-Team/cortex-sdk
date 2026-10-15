@@ -38,10 +38,10 @@
       "direction": "server",
       "type": "chat::answer",
       "payload": {
-        "content": "Hello back",
+        "content": ["Hello back"],
         "role": "assistant",
         "answer_kind": "final",
-        "turn_id": "turn_001"
+        "turn": 1
       },
       "note": "session_id: sess_abc123, seq: 2"
     }

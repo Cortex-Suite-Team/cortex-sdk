@@ -9,6 +9,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 
 import {
   validateOutboundEnvelope,
+  validateServerAnswer,
   type SchemaViolation,
 } from './schema-validation.js';
 
@@ -493,16 +494,24 @@ export function startMockServer(options: MockServerOptions = {}): Promise<MockSe
 
         if (messageType === 'chat::message' && autoChatAnswer && !matchedInjection) {
           server.sendTo(ws, makeEnvelope('chat::answer', {
-            content: 'Mock answer',
+            content: ['Mock answer'],
             role: 'assistant',
             answer_kind: 'final',
-            turn_id: `turn_${nextSeq()}`,
+            turn: nextSeq(),
           }));
         }
 
         options.onWsMessage?.(parsed, ws, server);
       });
     });
+
+    const serverAnswerViolations: string[] = [];
+    function assertServerAnswer(msg: Record<string, unknown>): void {
+      const errors = validateServerAnswer(msg);
+      if (errors.length === 0) return;
+      serverAnswerViolations.push(errors.join(', '));
+      throw new Error(`mock server sent a non-Runtime chat::answer: ${errors.join(', ')}`);
+    }
 
     const server: MockServer = {
       get port() {
@@ -540,6 +549,7 @@ export function startMockServer(options: MockServerOptions = {}): Promise<MockSe
       },
 
       broadcast(msg) {
+        assertServerAnswer(msg);
         const encoded = JSON.stringify(msg);
         for (const client of clients) {
           client.send(encoded);
@@ -547,6 +557,7 @@ export function startMockServer(options: MockServerOptions = {}): Promise<MockSe
       },
 
       sendTo(ws, msg) {
+        assertServerAnswer(msg);
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify(msg));
         }
@@ -573,6 +584,11 @@ export function startMockServer(options: MockServerOptions = {}): Promise<MockSe
       },
 
       close(): Promise<void> {
+        if (serverAnswerViolations.length > 0) {
+          const violations = serverAnswerViolations.splice(0);
+          return new Promise<void>((resolve) => { server.close().finally(resolve); })
+            .then(() => { throw new Error(`chat::answer schema violations: ${violations.join('; ')}`); });
+        }
         return new Promise((resolveClose, rejectClose) => {
           for (const client of clients) {
             client.terminate();

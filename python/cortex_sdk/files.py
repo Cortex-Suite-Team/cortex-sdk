@@ -159,9 +159,7 @@ def _message_file_binding(message: Mapping[str, object]) -> tuple[str, str, str,
 
 
 def _turn_identity(payload: dict[str, object]) -> str | None:
-    turn_id = payload.get("turn_id")
-    if isinstance(turn_id, str) and turn_id:
-        return turn_id
+    # Runtime serializes the turn as an integer; files bind to str(turn).
     turn = payload.get("turn")
     if type(turn) is int and turn >= 0:
         return str(turn)
@@ -169,27 +167,29 @@ def _turn_identity(payload: dict[str, object]) -> str | None:
 
 
 def parse_message_attachments(message: Mapping[str, object]) -> list[SessionFileDescriptor]:
-    """Public files that belong to this message, in the order the server sent them.
+    """Public files that belong to this message, in the order the server sent them,
+    at most MAX_ATTACHMENTS_PER_MESSAGE.
 
-    An assistant answer only owns assistant/outbound files bound to its turn; a
-    user message only owns user/inbound files bound to its client_msg_id. A
-    descriptor of another owner, direction or message (for example a user upload
-    re-exported inside an answer), an invalid descriptor or a repeated file_ref
-    is excluded.
+    An assistant answer only owns assistant/outbound files bound to str(turn); a
+    user message only owns user/inbound files bound to its client_msg_id. The
+    binding must be explicit and exact on both sides: a descriptor without
+    message_ref/message_ref_kind, or a message without a trusted identity (an
+    answer without turn, an echo without client_msg_id), owns nothing. Other
+    message types own no files. Invalid and repeated descriptors are excluded.
     """
     payload = message.get("payload")
     meta = payload.get("meta") if isinstance(payload, dict) else None
     raw = meta.get("attachments") if isinstance(meta, dict) else None
-    if not isinstance(raw, list):
-        return []
     binding = _message_file_binding(message)
+    if not isinstance(raw, list) or binding is None or binding[3] is None:
+        return []
     seen: set[str] = set()
     result: list[SessionFileDescriptor] = []
     for item in raw:
+        if len(result) >= MAX_ATTACHMENTS_PER_MESSAGE:
+            break
         descriptor = parse_public_attachment(item)
-        if descriptor is None or descriptor["file_ref"] in seen:
-            continue
-        if binding is not None and not _belongs_to_message(descriptor, binding):
+        if descriptor is None or descriptor["file_ref"] in seen or not _belongs_to_message(descriptor, binding):
             continue
         seen.add(descriptor["file_ref"])
         result.append(descriptor)
@@ -200,13 +200,12 @@ def _belongs_to_message(
     descriptor: SessionFileDescriptor, binding: tuple[str, str, str, str | None]
 ) -> bool:
     owner_role, direction, message_ref_kind, message_ref = binding
-    if descriptor["owner_role"] != owner_role or descriptor["direction"] != direction:
-        return False
-    if "message_ref_kind" in descriptor and descriptor["message_ref_kind"] != message_ref_kind:
-        return False
-    if message_ref is not None and "message_ref" in descriptor and descriptor["message_ref"] != message_ref:
-        return False
-    return True
+    return (
+        descriptor["owner_role"] == owner_role
+        and descriptor["direction"] == direction
+        and descriptor.get("message_ref_kind") == message_ref_kind
+        and descriptor.get("message_ref") == message_ref
+    )
 
 
 def sanitize_message_attachments(message: CortexMessage) -> CortexMessage:

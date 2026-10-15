@@ -152,23 +152,24 @@ Relevant payload fields:
 
 | Field | Type | Description |
 |---|---|---|
-| `content` | string | The complete answer text. |
+| `content` | string[] | The complete answer as ordered text blocks (join them to display). |
 | `answer_kind` | string | `"final"` for the conclusive answer. |
-| `role` | string | Always `"assistant"` for runtime answers. |
-| `turn_id` | string | Matches the `turn_id` from the preceding `chat::partial` chunks. |
-| `meta.attachments` | array | Optional. Files generated for this answer, as public session-file descriptors in publication order. See [Receiving generated files](file-attachments.md#receiving-generated-files). |
+| `role` | string | `"assistant"` for runtime answers; `"operator"` when an operator closes the interaction. |
+| `turn` | integer | Optional. The turn this answer completes; absent when the answer is not tied to a turn (for example an operator close). |
+| `meta` | object | Optional. Runtime metadata (for example `meta.billing`, operator-close `meta.actor`). |
+| `meta.attachments` | array | Optional. Up to 8 files generated for this answer, as public session-file descriptors in publication order, each bound to `String(turn)`. See [Receiving generated files](file-attachments.md#receiving-generated-files). |
 
 ```js
 // JavaScript (Browser and Node.js)
 if (msg.type === "chat::answer" && msg.payload.answer_kind === "final") {
-  console.log("Answer:", msg.payload.content);
+  console.log("Answer:", msg.payload.content.join(""));
 }
 ```
 
 ```python
 # Python
 if msg["type"] == "chat::answer" and msg["payload"].get("answer_kind") == "final":
-    print("Answer:", msg["payload"]["content"])
+    print("Answer:", "".join(msg["payload"]["content"]))
 ```
 
 ### `system::warning`
@@ -243,7 +244,7 @@ const client = new CortexClient({
       case "chat::answer":
         if (msg.payload.answer_kind === "final") {
           streamBuffer = "";
-          renderFinalAnswer(msg.payload.content);
+          renderFinalAnswer(msg.payload.content.join(""));
         }
         break;
 
@@ -284,7 +285,7 @@ def on_message(msg):
     elif msg_type == "chat::answer":
         if payload.get("answer_kind") == "final":
             stream_buffer.clear()
-            render_final_answer(payload["content"])
+            render_final_answer("".join(payload["content"]))
 
     elif msg_type == "system::warning":
         print("[warning]", payload)

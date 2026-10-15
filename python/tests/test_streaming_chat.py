@@ -48,10 +48,10 @@ async def test_streaming_chat() -> None:
                 "turn_id": "turn_002",
             }))
             await srv.send_to(ws, env("chat::answer", {
-                "content": "Quantum entanglement is a phenomenon ...",
+                "content": ["Quantum entanglement is a phenomenon ..."],
                 "role": "assistant",
                 "answer_kind": "final",
-                "turn_id": "turn_002",
+                "turn": 2,
             }))
 
     server = await start_mock_server(
@@ -88,7 +88,7 @@ async def test_streaming_chat() -> None:
         assert partials[1]["payload"]["content"] == "a phenomenon where two particles "
         assert partials[0]["payload"]["turn_id"] == "turn_002"
         assert partials[1]["payload"]["turn_id"] == "turn_002"
-        assert answer["payload"]["turn_id"] == "turn_002"
+        assert answer["payload"]["turn"] == 2
         assert answer["payload"]["answer_kind"] == "final"
         # callback was invoked for each message
         assert len([m for m in received if m["type"] in ("chat::partial", "chat::answer")]) >= 3

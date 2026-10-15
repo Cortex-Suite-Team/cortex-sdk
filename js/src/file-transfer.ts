@@ -8,7 +8,14 @@ const MAGIC = new Uint8Array([0x43, 0x46, 0x54, 0x31]);
 const HEADER_BYTES = 24;
 const TRANSFER_ID = /^ft_[0-9a-f]{32}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
-const FORBIDDEN_KEYS = new Set(['file_id', 'snapshot_id', 'blob_ref', 'storage_key', 'ticket', 'upload_ticket', 'delivery_ticket', 'file_link_secret', 'instance_id']);
+const FORBIDDEN_KEYS = new Set([
+  'file_id', 'snapshot_id', 'blob_ref', 'storage_key', 'ticket', 'upload_ticket', 'delivery_ticket', 'file_link_secret', 'instance_id',
+  'url', 'download_url', 'upload_url', 'download_mint_url', 'upload_path',
+]);
+// Internal identity prefixes are checked on identity/credential fields only, so
+// user-chosen text such as a filename "fi_budget.csv" stays valid.
+const IDENTITY_KEY = /(?:^|_)(?:id|ref|token|secret)$/;
+const INTERNAL_IDENTITY_PREFIXES = ['fi_', 'sn_'];
 const FILE_RESPONSE_TYPES = new Set(['file::upload.ready', 'file::upload.complete', 'file::download.ready', 'file::download.complete', 'file::list.result']);
 
 export interface UploadSource {
@@ -248,13 +255,18 @@ export class FileTransferManager {
   }
 }
 
-export function assertSafePublicControl(value: unknown): void {
-  if (typeof value === 'string') { if (value.startsWith('fi_')) throw makeError('invalid_file_transfer', 'Internal File Layer identity leaked'); return; }
-  if (Array.isArray(value)) { value.forEach(assertSafePublicControl); return; }
+export function assertSafePublicControl(value: unknown, identityField = false): void {
+  if (typeof value === 'string') {
+    if (identityField && INTERNAL_IDENTITY_PREFIXES.some((prefix) => value.startsWith(prefix))) {
+      throw makeError('invalid_file_transfer', 'Internal File Layer identity leaked');
+    }
+    return;
+  }
+  if (Array.isArray(value)) { value.forEach((item) => assertSafePublicControl(item, identityField)); return; }
   if (!value || typeof value !== 'object') return;
   for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
     if (FORBIDDEN_KEYS.has(key)) throw makeError('invalid_file_transfer', `Forbidden public field: ${key}`);
-    assertSafePublicControl(nested);
+    assertSafePublicControl(nested, IDENTITY_KEY.test(key));
   }
 }
 

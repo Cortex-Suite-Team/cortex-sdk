@@ -34,10 +34,10 @@ async def test_reconnect_resync() -> None:
                 "session_id": FIXED_SESSION_ID,
                 "seq": 1,
                 "payload": {
-                    "content": "Long task completed",
+                    "content": ["Long task completed"],
                     "role": "assistant",
                     "answer_kind": "final",
-                    "turn_id": "turn_003",
+                    "turn": 3,
                 },
                 "ts": "2026-04-04T00:00:00Z",
             })
@@ -74,8 +74,8 @@ async def test_reconnect_resync() -> None:
             m for m in received
             if m["type"] == "chat::answer" and m["payload"].get("answer_kind") == "final"
         )
-        assert answer["payload"]["content"] == "Long task completed"
-        assert answer["payload"]["turn_id"] == "turn_003"
+        assert answer["payload"]["content"] == ["Long task completed"]
+        assert answer["payload"]["turn"] == 3
 
         resync_msg = next(m for m in server.received if m["type"] == "system::resync")
         assert isinstance(resync_msg["payload"]["last_seq"], int)  # type: ignore[index]

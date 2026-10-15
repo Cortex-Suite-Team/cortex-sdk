@@ -38,10 +38,10 @@ describe('streaming_chat', () => {
             turn_id: 'turn_002',
           }));
           srv.sendTo(ws, makeEnv('chat::answer', {
-            content: 'Quantum entanglement is a phenomenon where two particles remain correlated regardless of distance.',
+            content: ['Quantum entanglement is a phenomenon where two particles remain correlated regardless of distance.'],
             role: 'assistant',
             answer_kind: 'final',
-            turn_id: 'turn_002',
+            turn: 2,
           }));
         }
       },
@@ -66,7 +66,7 @@ describe('streaming_chat', () => {
       expect(partials[1].payload['content']).toBe('a phenomenon where two particles ');
       expect(partials[0].payload['turn_id']).toBe('turn_002');
       expect(partials[1].payload['turn_id']).toBe('turn_002');
-      expect(answer.payload['turn_id']).toBe('turn_002');
+      expect(answer.payload['turn']).toBe(2);
       expect(answer.payload['answer_kind']).toBe('final');
       expect(received.filter(m => m.type === 'chat::partial' || m.type === 'chat::answer').length)
         .toBeGreaterThanOrEqual(3);

@@ -58,12 +58,14 @@
   },
   "message_binding": {
     "user_message": "user/inbound descriptors belong to the chat::message whose meta.client_msg_id equals descriptor.message_ref (message_ref_kind=client_msg_id); they are echoed in chat::echo payload.meta.attachments",
-    "assistant_answer": "assistant/outbound descriptors belong to the chat::answer whose turn identity (payload.turn_id, or String(payload.turn)) equals descriptor.message_ref (message_ref_kind=turn); they arrive in that answer's payload.meta.attachments",
+    "assistant_answer": "assistant/outbound descriptors belong to the chat::answer whose String(payload.turn) equals descriptor.message_ref (message_ref_kind=turn); they arrive in that answer's payload.meta.attachments. An answer without a turn owns no files",
+    "strict": "a bound message attachment needs both message_ref and message_ref_kind matching the message's trusted identity; missing identity on either side drops the file. Message types other than chat::answer/chat::partial/chat::echo/chat::message own no files. file::list entries may be unbound",
     "inherited_user_files": "a user/inbound descriptor inside an assistant answer (Runtime continue-from-wait re-exports the user's meta) is never an assistant attachment and is excluded"
   },
   "session_id": "sess_ea_multi_001",
   "client_msg_id": "cli_msg_ea_3in_2out",
-  "turn_id": "turn_ea_0007",
+  "turn": 7,
+  "turn_ref": "7",
   "inputs": [
     {
       "descriptor": {
@@ -121,7 +123,7 @@
         "owner_role": "assistant",
         "direction": "outbound",
         "state": "available",
-        "message_ref": "turn_ea_0007",
+        "message_ref": "7",
         "message_ref_kind": "turn"
       },
       "bytes_hex": "726567696f6e2c64656c74615f7063740a6e6f7274682c31322e350a736f7574682c362e310a",
@@ -136,7 +138,7 @@
         "owner_role": "assistant",
         "direction": "outbound",
         "state": "available",
-        "message_ref": "turn_ea_0007",
+        "message_ref": "7",
         "message_ref_kind": "turn"
       },
       "bytes_hex": "232053756d6d6172790a426f746820726567696f6e7320677265773b206e6f727468206c65642061742031322e35252e0a",
@@ -205,10 +207,12 @@
       }
     },
     "chat_answer": {
-      "content": "Here are the regional deltas and a summary.",
+      "content": [
+        "Here are the regional deltas and a summary."
+      ],
       "role": "assistant",
       "answer_kind": "final",
-      "turn_id": "turn_ea_0007",
+      "turn": 7,
       "meta": {
         "attachments": [
           {
@@ -219,7 +223,7 @@
             "owner_role": "assistant",
             "direction": "outbound",
             "state": "available",
-            "message_ref": "turn_ea_0007",
+            "message_ref": "7",
             "message_ref_kind": "turn"
           },
           {
@@ -230,7 +234,7 @@
             "owner_role": "assistant",
             "direction": "outbound",
             "state": "available",
-            "message_ref": "turn_ea_0007",
+            "message_ref": "7",
             "message_ref_kind": "turn"
           }
         ]
@@ -279,7 +283,7 @@
           "owner_role": "assistant",
           "direction": "outbound",
           "state": "available",
-          "message_ref": "turn_ea_0007",
+          "message_ref": "7",
           "message_ref_kind": "turn"
         },
         {
@@ -290,7 +294,7 @@
           "owner_role": "assistant",
           "direction": "outbound",
           "state": "available",
-          "message_ref": "turn_ea_0007",
+          "message_ref": "7",
           "message_ref_kind": "turn"
         }
       ],
@@ -412,7 +416,7 @@
         "owner_role": "assistant",
         "direction": "outbound",
         "state": "available",
-        "message_ref": "turn_ea_0007",
+        "message_ref": "7",
         "message_ref_kind": "turn",
         "file_id": "fi_0123456789abcdef",
         "snapshot_id": "sn_0123456789abcdef",
@@ -429,7 +433,7 @@
         "owner_role": "assistant",
         "direction": "outbound",
         "state": "available",
-        "message_ref": "turn_ea_0007",
+        "message_ref": "7",
         "message_ref_kind": "turn"
       }
     },
@@ -443,7 +447,7 @@
         "owner_role": "assistant",
         "direction": "outbound",
         "state": "available",
-        "message_ref": "turn_ea_0007",
+        "message_ref": "7",
         "message_ref_kind": "turn",
         "download_mint_url": "https://evil.example/mint",
         "download_url": "https://evil.example/f",
@@ -459,7 +463,7 @@
         "owner_role": "assistant",
         "direction": "outbound",
         "state": "available",
-        "message_ref": "turn_ea_0007",
+        "message_ref": "7",
         "message_ref_kind": "turn"
       }
     },
@@ -473,7 +477,7 @@
         "owner_role": "assistant",
         "direction": "outbound",
         "state": "available",
-        "message_ref": "turn_ea_0007",
+        "message_ref": "7",
         "message_ref_kind": "turn"
       },
       "expected": {
@@ -484,7 +488,7 @@
         "owner_role": "assistant",
         "direction": "outbound",
         "state": "available",
-        "message_ref": "turn_ea_0007",
+        "message_ref": "7",
         "message_ref_kind": "turn"
       }
     },
@@ -498,7 +502,7 @@
         "owner_role": "assistant",
         "direction": "outbound",
         "state": "available",
-        "message_ref": "turn_ea_0007",
+        "message_ref": "7",
         "message_ref_kind": "turn"
       },
       "expected": null
@@ -513,7 +517,7 @@
         "owner_role": "assistant",
         "direction": "outbound",
         "state": "available",
-        "message_ref": "turn_ea_0007",
+        "message_ref": "7",
         "message_ref_kind": "turn"
       },
       "expected": null
@@ -528,7 +532,7 @@
         "owner_role": "assistant",
         "direction": "outbound",
         "state": "available",
-        "message_ref": "turn_ea_0007",
+        "message_ref": "7",
         "message_ref_kind": "turn"
       },
       "expected": null
@@ -557,7 +561,7 @@
         "owner_role": "assistant",
         "direction": "outbound",
         "state": "available",
-        "message_ref": "turn_ea_0007",
+        "message_ref": "7",
         "message_ref_kind": "turn"
       },
       "expected": null
@@ -571,7 +575,7 @@
         "size": 38,
         "direction": "outbound",
         "state": "available",
-        "message_ref": "turn_ea_0007",
+        "message_ref": "7",
         "message_ref_kind": "turn"
       },
       "expected": null
@@ -586,7 +590,7 @@
         "owner_role": "assistant",
         "direction": "outbound",
         "state": "available",
-        "message_ref": "turn_ea_0007",
+        "message_ref": "7",
         "message_ref_kind": "turn"
       },
       "expected": null
@@ -601,7 +605,7 @@
         "owner_role": "assistant",
         "direction": "outbound",
         "state": "available",
-        "message_ref": "turn_ea_0007",
+        "message_ref": "7",
         "message_ref_kind": "turn"
       },
       "expected": null
@@ -616,7 +620,7 @@
         "owner_role": "assistant",
         "direction": "outbound",
         "state": "available",
-        "message_ref": "turn_ea_0007",
+        "message_ref": "7",
         "message_ref_kind": "turn"
       },
       "expected": null
@@ -631,7 +635,7 @@
         "owner_role": "root",
         "direction": "outbound",
         "state": "available",
-        "message_ref": "turn_ea_0007",
+        "message_ref": "7",
         "message_ref_kind": "turn"
       },
       "expected": null
@@ -646,7 +650,7 @@
         "owner_role": "assistant",
         "direction": "outbound",
         "state": "ready",
-        "message_ref": "turn_ea_0007",
+        "message_ref": "7",
         "message_ref_kind": "turn"
       },
       "expected": null
@@ -657,207 +661,1427 @@
       "expected": null
     }
   ],
-  "answer_projection_cases": [
+  "message_projection_cases": [
     {
-      "name": "inherited_user_upload_in_answer",
-      "attachments": [
-        {
-          "file_ref": "sf_in_01HZY1",
-          "filename": "revenue.csv",
-          "content_type": "text/csv",
-          "size": 40,
-          "owner_role": "user",
-          "direction": "inbound",
-          "state": "available",
-          "message_ref": "cli_msg_ea_3in_2out",
-          "message_ref_kind": "client_msg_id"
-        },
-        {
-          "file_ref": "sf_out_01HZZ1",
-          "filename": "delta.csv",
-          "content_type": "text/csv",
-          "size": 38,
-          "owner_role": "assistant",
-          "direction": "outbound",
-          "state": "available",
-          "message_ref": "turn_ea_0007",
-          "message_ref_kind": "turn"
+      "name": "answer_inherited_user_upload",
+      "type": "chat::answer",
+      "payload": {
+        "content": [
+          "Here are the regional deltas and a summary."
+        ],
+        "role": "assistant",
+        "answer_kind": "final",
+        "turn": 7,
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_in_01HZY1",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
         }
-      ],
+      },
       "expected_refs": [
         "sf_out_01HZZ1"
       ]
     },
     {
-      "name": "wrong_turn",
-      "attachments": [
-        {
-          "file_ref": "sf_out_01HZZ1",
-          "filename": "delta.csv",
-          "content_type": "text/csv",
-          "size": 38,
-          "owner_role": "assistant",
-          "direction": "outbound",
-          "state": "available",
-          "message_ref": "turn_other",
-          "message_ref_kind": "turn"
-        },
-        {
-          "file_ref": "sf_out_01HZZ2",
-          "filename": "summary.md",
-          "content_type": "text/markdown",
-          "size": 49,
-          "owner_role": "assistant",
-          "direction": "outbound",
-          "state": "available",
-          "message_ref": "turn_ea_0007",
-          "message_ref_kind": "turn"
+      "name": "answer_wrong_turn",
+      "type": "chat::answer",
+      "payload": {
+        "content": [
+          "Here are the regional deltas and a summary."
+        ],
+        "role": "assistant",
+        "answer_kind": "final",
+        "turn": 7,
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "8",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
         }
-      ],
+      },
       "expected_refs": [
         "sf_out_01HZZ2"
       ]
     },
     {
-      "name": "wrong_message_ref_kind",
-      "attachments": [
-        {
-          "file_ref": "sf_out_01HZZ1",
-          "filename": "delta.csv",
-          "content_type": "text/csv",
-          "size": 38,
-          "owner_role": "assistant",
-          "direction": "outbound",
-          "state": "available",
-          "message_ref": "turn_ea_0007",
-          "message_ref_kind": "client_msg_id"
-        },
-        {
-          "file_ref": "sf_out_01HZZ2",
-          "filename": "summary.md",
-          "content_type": "text/markdown",
-          "size": 49,
-          "owner_role": "assistant",
-          "direction": "outbound",
-          "state": "available",
-          "message_ref": "turn_ea_0007",
-          "message_ref_kind": "turn"
+      "name": "answer_legacy_turn_id_ref",
+      "type": "chat::answer",
+      "payload": {
+        "content": [
+          "Here are the regional deltas and a summary."
+        ],
+        "role": "assistant",
+        "answer_kind": "final",
+        "turn": 7,
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "turn_ea_0007",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
         }
-      ],
+      },
       "expected_refs": [
         "sf_out_01HZZ2"
       ]
     },
     {
-      "name": "duplicate_ref",
-      "attachments": [
-        {
-          "file_ref": "sf_out_01HZZ1",
-          "filename": "delta.csv",
-          "content_type": "text/csv",
-          "size": 38,
-          "owner_role": "assistant",
-          "direction": "outbound",
-          "state": "available",
-          "message_ref": "turn_ea_0007",
-          "message_ref_kind": "turn"
-        },
-        {
-          "file_ref": "sf_out_01HZZ1",
-          "filename": "delta.csv",
-          "content_type": "text/csv",
-          "size": 38,
-          "owner_role": "assistant",
-          "direction": "outbound",
-          "state": "available",
-          "message_ref": "turn_ea_0007",
-          "message_ref_kind": "turn"
-        },
-        {
-          "file_ref": "sf_out_01HZZ2",
-          "filename": "summary.md",
-          "content_type": "text/markdown",
-          "size": 49,
-          "owner_role": "assistant",
-          "direction": "outbound",
-          "state": "available",
-          "message_ref": "turn_ea_0007",
-          "message_ref_kind": "turn"
+      "name": "answer_wrong_message_ref_kind",
+      "type": "chat::answer",
+      "payload": {
+        "content": [
+          "Here are the regional deltas and a summary."
+        ],
+        "role": "assistant",
+        "answer_kind": "final",
+        "turn": 7,
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
         }
-      ],
+      },
+      "expected_refs": [
+        "sf_out_01HZZ2"
+      ]
+    },
+    {
+      "name": "answer_missing_message_ref",
+      "type": "chat::answer",
+      "payload": {
+        "content": [
+          "Here are the regional deltas and a summary."
+        ],
+        "role": "assistant",
+        "answer_kind": "final",
+        "turn": 7,
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
+        }
+      },
+      "expected_refs": [
+        "sf_out_01HZZ2"
+      ]
+    },
+    {
+      "name": "answer_missing_message_ref_kind",
+      "type": "chat::answer",
+      "payload": {
+        "content": [
+          "Here are the regional deltas and a summary."
+        ],
+        "role": "assistant",
+        "answer_kind": "final",
+        "turn": 7,
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
+        }
+      },
+      "expected_refs": [
+        "sf_out_01HZZ2"
+      ]
+    },
+    {
+      "name": "answer_without_turn_owns_no_files",
+      "type": "chat::answer",
+      "payload": {
+        "content": [
+          "Here are the regional deltas and a summary."
+        ],
+        "role": "assistant",
+        "answer_kind": "final",
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
+        }
+      },
+      "expected_refs": []
+    },
+    {
+      "name": "answer_legacy_turn_id_only_owns_no_files",
+      "type": "chat::answer",
+      "payload": {
+        "content": [
+          "Here are the regional deltas and a summary."
+        ],
+        "role": "assistant",
+        "answer_kind": "final",
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
+        },
+        "turn_id": "7"
+      },
+      "expected_refs": []
+    },
+    {
+      "name": "answer_string_turn_owns_no_files",
+      "type": "chat::answer",
+      "payload": {
+        "content": [
+          "Here are the regional deltas and a summary."
+        ],
+        "role": "assistant",
+        "answer_kind": "final",
+        "turn": "7",
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
+        }
+      },
+      "expected_refs": []
+    },
+    {
+      "name": "operator_close_without_turn_owns_no_files",
+      "type": "chat::answer",
+      "payload": {
+        "content": [
+          "Closing this conversation."
+        ],
+        "role": "operator",
+        "answer_kind": "final",
+        "meta": {
+          "actor": {
+            "kind": "operator",
+            "name": "Ops"
+          },
+          "source": "operator_close",
+          "resolution": "manual_close",
+          "escalation_id": "esc_1",
+          "interaction_id": "int_1",
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
+        }
+      },
+      "expected_refs": []
+    },
+    {
+      "name": "answer_duplicate_ref",
+      "type": "chat::answer",
+      "payload": {
+        "content": [
+          "Here are the regional deltas and a summary."
+        ],
+        "role": "assistant",
+        "answer_kind": "final",
+        "turn": 7,
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
+        }
+      },
       "expected_refs": [
         "sf_out_01HZZ1",
         "sf_out_01HZZ2"
       ]
     },
     {
-      "name": "not_a_list",
-      "attachments": {
-        "file_ref": "sf_out_01HZZ1"
+      "name": "answer_capped_at_eight",
+      "type": "chat::answer",
+      "payload": {
+        "content": [
+          "Here are the regional deltas and a summary."
+        ],
+        "role": "assistant",
+        "answer_kind": "final",
+        "turn": 7,
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_n0",
+              "filename": "out0.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_n1",
+              "filename": "out1.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_n2",
+              "filename": "out2.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_n3",
+              "filename": "out3.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_n4",
+              "filename": "out4.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_n5",
+              "filename": "out5.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_n6",
+              "filename": "out6.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_n7",
+              "filename": "out7.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_n8",
+              "filename": "out8.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
+        }
+      },
+      "expected_refs": [
+        "sf_out_n0",
+        "sf_out_n1",
+        "sf_out_n2",
+        "sf_out_n3",
+        "sf_out_n4",
+        "sf_out_n5",
+        "sf_out_n6",
+        "sf_out_n7"
+      ]
+    },
+    {
+      "name": "answer_not_a_list",
+      "type": "chat::answer",
+      "payload": {
+        "content": [
+          "Here are the regional deltas and a summary."
+        ],
+        "role": "assistant",
+        "answer_kind": "final",
+        "turn": 7,
+        "meta": {
+          "attachments": {
+            "file_ref": "sf_out_01HZZ1"
+          }
+        }
       },
       "expected_refs": []
-    }
-  ],
-  "echo_projection_cases": [
+    },
     {
-      "name": "assistant_file_in_user_echo",
-      "attachments": [
-        {
-          "file_ref": "sf_out_01HZZ1",
-          "filename": "delta.csv",
-          "content_type": "text/csv",
-          "size": 38,
-          "owner_role": "assistant",
-          "direction": "outbound",
-          "state": "available",
-          "message_ref": "turn_ea_0007",
-          "message_ref_kind": "turn"
-        },
-        {
-          "file_ref": "sf_in_01HZY2",
-          "filename": "brief.md",
-          "content_type": "text/markdown",
-          "size": 60,
-          "owner_role": "user",
-          "direction": "inbound",
-          "state": "available",
-          "message_ref": "cli_msg_ea_3in_2out",
-          "message_ref_kind": "client_msg_id"
+      "name": "partial_cross_turn",
+      "type": "chat::partial",
+      "payload": {
+        "content": [
+          "Here"
+        ],
+        "role": "assistant",
+        "turn": 8,
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
         }
-      ],
+      },
+      "expected_refs": []
+    },
+    {
+      "name": "echo_assistant_file",
+      "type": "chat::echo",
+      "payload": {
+        "content": "Compare the attached revenue files.",
+        "role": "user",
+        "meta": {
+          "client_msg_id": "cli_msg_ea_3in_2out",
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_in_01HZY2",
+              "filename": "brief.md",
+              "content_type": "text/markdown",
+              "size": 60,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            }
+          ]
+        }
+      },
       "expected_refs": [
         "sf_in_01HZY2"
       ]
     },
     {
-      "name": "wrong_client_msg_id",
-      "attachments": [
-        {
-          "file_ref": "sf_in_01HZY1",
-          "filename": "revenue.csv",
-          "content_type": "text/csv",
-          "size": 40,
-          "owner_role": "user",
-          "direction": "inbound",
-          "state": "available",
-          "message_ref": "cli_msg_other",
-          "message_ref_kind": "client_msg_id"
-        },
-        {
-          "file_ref": "sf_in_01HZY3",
-          "filename": "appendix.bin",
-          "content_type": "application/octet-stream",
-          "size": 256,
-          "owner_role": "user",
-          "direction": "inbound",
-          "state": "available",
-          "message_ref": "cli_msg_ea_3in_2out",
-          "message_ref_kind": "client_msg_id"
+      "name": "echo_wrong_client_msg_id",
+      "type": "chat::echo",
+      "payload": {
+        "content": "Compare the attached revenue files.",
+        "role": "user",
+        "meta": {
+          "client_msg_id": "cli_msg_ea_3in_2out",
+          "attachments": [
+            {
+              "file_ref": "sf_in_01HZY1",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_other",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_01HZY3",
+              "filename": "appendix.bin",
+              "content_type": "application/octet-stream",
+              "size": 256,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            }
+          ]
         }
-      ],
+      },
       "expected_refs": [
         "sf_in_01HZY3"
       ]
+    },
+    {
+      "name": "echo_missing_message_ref",
+      "type": "chat::echo",
+      "payload": {
+        "content": "Compare the attached revenue files.",
+        "role": "user",
+        "meta": {
+          "client_msg_id": "cli_msg_ea_3in_2out",
+          "attachments": [
+            {
+              "file_ref": "sf_in_01HZY1",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_01HZY3",
+              "filename": "appendix.bin",
+              "content_type": "application/octet-stream",
+              "size": 256,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            }
+          ]
+        }
+      },
+      "expected_refs": [
+        "sf_in_01HZY3"
+      ]
+    },
+    {
+      "name": "echo_missing_message_ref_kind",
+      "type": "chat::echo",
+      "payload": {
+        "content": "Compare the attached revenue files.",
+        "role": "user",
+        "meta": {
+          "client_msg_id": "cli_msg_ea_3in_2out",
+          "attachments": [
+            {
+              "file_ref": "sf_in_01HZY1",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out"
+            },
+            {
+              "file_ref": "sf_in_01HZY3",
+              "filename": "appendix.bin",
+              "content_type": "application/octet-stream",
+              "size": 256,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            }
+          ]
+        }
+      },
+      "expected_refs": [
+        "sf_in_01HZY3"
+      ]
+    },
+    {
+      "name": "echo_without_client_msg_id_owns_no_files",
+      "type": "chat::echo",
+      "payload": {
+        "content": "x",
+        "role": "user",
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_in_01HZY1",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_01HZY2",
+              "filename": "brief.md",
+              "content_type": "text/markdown",
+              "size": 60,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            },
+            {
+              "file_ref": "sf_in_01HZY3",
+              "filename": "appendix.bin",
+              "content_type": "application/octet-stream",
+              "size": 256,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            }
+          ]
+        }
+      },
+      "expected_refs": []
+    },
+    {
+      "name": "forward_owns_no_files",
+      "type": "chat::forward",
+      "payload": {
+        "content": "fwd",
+        "role": "assistant",
+        "turn": 7,
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
+        }
+      },
+      "expected_refs": []
+    }
+  ],
+  "runtime_answer_schema_cases": [
+    {
+      "name": "assistant_final_with_files_and_billing",
+      "valid": true,
+      "payload": {
+        "content": [
+          "Here are the regional deltas and a summary."
+        ],
+        "role": "assistant",
+        "answer_kind": "final",
+        "turn": 7,
+        "meta": {
+          "billing": {
+            "summary": {
+              "metering": {},
+              "authoritative": false
+            }
+          },
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "assistant_final_without_turn_or_meta",
+      "valid": true,
+      "payload": {
+        "content": [
+          "Done."
+        ],
+        "role": "assistant",
+        "answer_kind": "final"
+      }
+    },
+    {
+      "name": "assistant_empty_content",
+      "valid": true,
+      "payload": {
+        "content": [],
+        "role": "assistant",
+        "answer_kind": "final",
+        "turn": 0
+      }
+    },
+    {
+      "name": "operator_close",
+      "valid": true,
+      "payload": {
+        "content": [
+          "Closing this conversation."
+        ],
+        "role": "operator",
+        "answer_kind": "final",
+        "meta": {
+          "actor": {
+            "kind": "operator",
+            "name": "Ops"
+          },
+          "source": "operator_close",
+          "resolution": "manual_close",
+          "escalation_id": "esc_1",
+          "interaction_id": "int_1",
+          "attachments": []
+        }
+      }
+    },
+    {
+      "name": "legacy_turn_id",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Here are the regional deltas and a summary."
+        ],
+        "role": "assistant",
+        "answer_kind": "final",
+        "turn": 7,
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
+        },
+        "turn_id": "7"
+      }
+    },
+    {
+      "name": "string_content",
+      "valid": false,
+      "payload": {
+        "content": "text",
+        "role": "assistant",
+        "answer_kind": "final",
+        "turn": 7,
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "non_string_block",
+      "valid": false,
+      "payload": {
+        "content": [
+          "ok",
+          1
+        ],
+        "role": "assistant",
+        "answer_kind": "final",
+        "turn": 7,
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "user_role",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Here are the regional deltas and a summary."
+        ],
+        "role": "user",
+        "answer_kind": "final",
+        "turn": 7,
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "string_turn",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Here are the regional deltas and a summary."
+        ],
+        "role": "assistant",
+        "answer_kind": "final",
+        "turn": "7",
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "negative_turn",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Here are the regional deltas and a summary."
+        ],
+        "role": "assistant",
+        "answer_kind": "final",
+        "turn": -1,
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "partial_answer_kind",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Here are the regional deltas and a summary."
+        ],
+        "role": "assistant",
+        "answer_kind": "partial",
+        "turn": 7,
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_01HZZ2",
+              "filename": "summary.md",
+              "content_type": "text/markdown",
+              "size": 49,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "nine_generated_files",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Here are the regional deltas and a summary."
+        ],
+        "role": "assistant",
+        "answer_kind": "final",
+        "turn": 7,
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_n0",
+              "filename": "out0.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_n1",
+              "filename": "out1.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_n2",
+              "filename": "out2.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_n3",
+              "filename": "out3.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_n4",
+              "filename": "out4.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_n5",
+              "filename": "out5.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_n6",
+              "filename": "out6.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_n7",
+              "filename": "out7.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            },
+            {
+              "file_ref": "sf_out_n8",
+              "filename": "out8.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref": "7",
+              "message_ref_kind": "turn"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "unbound_generated_file",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Here are the regional deltas and a summary."
+        ],
+        "role": "assistant",
+        "answer_kind": "final",
+        "turn": 7,
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_out_01HZZ1",
+              "filename": "delta.csv",
+              "content_type": "text/csv",
+              "size": 38,
+              "owner_role": "assistant",
+              "direction": "outbound",
+              "state": "available",
+              "message_ref_kind": "turn"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "inherited_user_file",
+      "valid": false,
+      "payload": {
+        "content": [
+          "Here are the regional deltas and a summary."
+        ],
+        "role": "assistant",
+        "answer_kind": "final",
+        "turn": 7,
+        "meta": {
+          "attachments": [
+            {
+              "file_ref": "sf_in_01HZY1",
+              "filename": "revenue.csv",
+              "content_type": "text/csv",
+              "size": 40,
+              "owner_role": "user",
+              "direction": "inbound",
+              "state": "available",
+              "message_ref": "cli_msg_ea_3in_2out",
+              "message_ref_kind": "client_msg_id"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "unbound_list_entries": [
+    {
+      "name": "fresh_upload_not_yet_sent",
+      "descriptor": {
+        "file_ref": "sf_in_01HZY1",
+        "filename": "revenue.csv",
+        "content_type": "text/csv",
+        "size": 40,
+        "owner_role": "user",
+        "direction": "inbound",
+        "state": "available"
+      }
+    },
+    {
+      "name": "filename_resembling_internal_prefix",
+      "descriptor": {
+        "file_ref": "sf_in_01HZY2",
+        "filename": "fi_budget.csv",
+        "content_type": "text/markdown",
+        "size": 60,
+        "owner_role": "user",
+        "direction": "inbound",
+        "state": "available"
+      }
     }
   ]
 }

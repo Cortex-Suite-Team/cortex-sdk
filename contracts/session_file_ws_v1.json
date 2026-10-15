@@ -101,7 +101,31 @@
     "upload_ticket",
     "delivery_ticket",
     "file_link_secret",
-    "instance_id"
+    "instance_id",
+    "url",
+    "download_url",
+    "upload_url",
+    "download_mint_url",
+    "upload_path"
   ],
-  "forbidden_public_value_prefixes": ["fi_"]
+  "forbidden_public_value_prefixes": ["fi_", "sn_"],
+  "forbidden_value_prefix_key_pattern": "(?:^|_)(?:id|ref|token|secret)$",
+  "control_safety_vectors": [
+    {"name": "filename_with_internal_prefix", "valid": true, "payload": {"files": [{"file_ref": "sf_a1", "filename": "fi_budget.csv", "content_type": "text/csv", "size": 3, "owner_role": "user", "direction": "inbound", "state": "available"}], "total": 1}},
+    {"name": "download_ready_filename_sn_prefix", "valid": true, "payload": {"transfer_id": "ft_00000000000000000000000000000000", "file_ref": "sf_a1", "filename": "sn_notes.txt", "content_type": "text/plain", "size": 1, "chunk_bytes": 262144}},
+    {"name": "content_type_with_internal_prefix_text", "valid": true, "payload": {"files": [{"file_ref": "sf_a1", "filename": "fi_budget.csv", "content_type": "application/fi_custom", "size": 3, "owner_role": "user", "direction": "inbound", "state": "available"}], "total": 1}},
+    {"name": "internal_file_ref", "valid": false, "payload": {"transfer_id": "ft_00000000000000000000000000000000", "file_ref": "fi_0123456789abcdef"}},
+    {"name": "internal_snapshot_ref", "valid": false, "payload": {"files": [{"file_ref": "sn_0123456789abcdef", "filename": "fi_budget.csv", "content_type": "text/csv", "size": 3, "owner_role": "user", "direction": "inbound", "state": "available"}], "total": 1}},
+    {"name": "internal_message_ref", "valid": false, "payload": {"files": [{"file_ref": "sf_a1", "filename": "fi_budget.csv", "content_type": "text/csv", "size": 3, "owner_role": "user", "direction": "inbound", "state": "available", "message_ref": "fi_0123456789abcdef"}], "total": 1}},
+    {"name": "internal_transfer_id", "valid": false, "payload": {"transfer_id": "fi_0123456789abcdef"}},
+    {"name": "identity_in_array", "valid": false, "payload": {"related_ref": ["sf_ok", "sn_0123456789abcdef"]}},
+    {"name": "file_id_field", "valid": false, "payload": {"files": [{"file_ref": "sf_a1", "filename": "fi_budget.csv", "content_type": "text/csv", "size": 3, "owner_role": "user", "direction": "inbound", "state": "available", "file_id": "fi_0123456789abcdef"}], "total": 1}},
+    {"name": "snapshot_id_field_any_value", "valid": false, "payload": {"nested": {"snapshot_id": "anything"}}},
+    {"name": "storage_key_field", "valid": false, "payload": {"storage_key": "tenant/a/blob"}},
+    {"name": "delivery_ticket_field", "valid": false, "payload": {"files": [{"file_ref": "sf_a1", "filename": "fi_budget.csv", "content_type": "text/csv", "size": 3, "owner_role": "user", "direction": "inbound", "state": "available", "delivery_ticket": "tkt"}], "total": 1}},
+    {"name": "download_mint_url_field", "valid": false, "payload": {"files": [{"file_ref": "sf_a1", "filename": "fi_budget.csv", "content_type": "text/csv", "size": 3, "owner_role": "user", "direction": "inbound", "state": "available", "download_mint_url": "https://evil.example/mint"}], "total": 1}},
+    {"name": "download_url_field", "valid": false, "payload": {"download_url": "https://evil.example/f"}},
+    {"name": "upload_path_field", "valid": false, "payload": {"upload_path": "/internal/upload"}},
+    {"name": "url_field", "valid": false, "payload": {"nested": [{"url": "https://evil.example/f"}]}}
+  ]
 }

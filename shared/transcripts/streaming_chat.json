@@ -58,10 +58,10 @@
       "direction": "server",
       "type": "chat::answer",
       "payload": {
-        "content": "Quantum entanglement is a phenomenon where two particles remain correlated regardless of distance.",
+        "content": ["Quantum entanglement is a phenomenon where two particles remain correlated regardless of distance."],
         "role": "assistant",
         "answer_kind": "final",
-        "turn_id": "turn_002"
+        "turn": 2
       },
       "note": "session_id: sess_abc123, seq: 4 — final answer terminates the stream; turn_id matches partials"
     }

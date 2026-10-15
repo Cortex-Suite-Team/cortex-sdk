@@ -174,34 +174,35 @@ function messageFileBinding(message: CortexMessage): MessageFileBinding | null {
   return null;
 }
 
+// Runtime serializes the turn as an integer; files bind to String(turn).
 function turnIdentity(payload: Record<string, unknown>): string | null {
-  const turnId = payload['turn_id'];
-  if (typeof turnId === 'string' && turnId) return turnId;
   const turn = payload['turn'];
   if (typeof turn === 'number' && Number.isSafeInteger(turn) && turn >= 0) return String(turn);
   return null;
 }
 
 /**
- * Public files that belong to this message, in the order the server sent them.
+ * Public files that belong to this message, in the order the server sent them,
+ * at most MAX_ATTACHMENTS_PER_MESSAGE.
  *
- * An assistant answer only owns assistant/outbound files bound to its turn; a
- * user message only owns user/inbound files bound to its client_msg_id. A
- * descriptor of another owner, direction or message (for example a user upload
- * re-exported inside an answer), an invalid descriptor or a repeated file_ref
- * is excluded.
+ * An assistant answer only owns assistant/outbound files bound to String(turn);
+ * a user message only owns user/inbound files bound to its client_msg_id. The
+ * binding must be explicit and exact on both sides: a descriptor without
+ * message_ref/message_ref_kind, or a message without a trusted identity (an
+ * answer without turn, an echo without client_msg_id), owns nothing. Other
+ * message types own no files. Invalid and repeated descriptors are excluded.
  */
 export function parseMessageAttachments(message: CortexMessage): SessionFileDescriptor[] {
   const meta = asRecord(message.payload?.['meta']);
   const raw = meta?.['attachments'];
-  if (!Array.isArray(raw)) return [];
   const binding = messageFileBinding(message);
+  if (!Array.isArray(raw) || !binding || binding.messageRef === null) return [];
   const seen = new Set<string>();
   const result: SessionFileDescriptor[] = [];
   for (const item of raw) {
+    if (result.length >= MAX_ATTACHMENTS_PER_MESSAGE) break;
     const descriptor = parsePublicAttachment(item);
-    if (!descriptor || seen.has(descriptor.file_ref)) continue;
-    if (binding && !belongsToMessage(descriptor, binding)) continue;
+    if (!descriptor || seen.has(descriptor.file_ref) || !belongsToMessage(descriptor, binding)) continue;
     seen.add(descriptor.file_ref);
     result.push(descriptor);
   }
@@ -209,12 +210,10 @@ export function parseMessageAttachments(message: CortexMessage): SessionFileDesc
 }
 
 function belongsToMessage(descriptor: SessionFileDescriptor, binding: MessageFileBinding): boolean {
-  if (descriptor.owner_role !== binding.ownerRole || descriptor.direction !== binding.direction) return false;
-  if (descriptor.message_ref_kind !== undefined && descriptor.message_ref_kind !== binding.messageRefKind) return false;
-  if (binding.messageRef !== null && descriptor.message_ref !== undefined && descriptor.message_ref !== binding.messageRef) {
-    return false;
-  }
-  return true;
+  return descriptor.owner_role === binding.ownerRole
+    && descriptor.direction === binding.direction
+    && descriptor.message_ref_kind === binding.messageRefKind
+    && descriptor.message_ref === binding.messageRef;
 }
 
 /** Replace payload.meta.attachments of an inbound message with its public projection. */

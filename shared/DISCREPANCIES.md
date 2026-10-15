@@ -131,24 +131,35 @@ libraries. Upgrade to draft 2020-12 in a future phase if strict vocabulary featu
 ## D-11. `chat::answer` payload shape vs current Runtime
 
 **Found (SDK #2, 2026-10-15):** `cortex-runtime` `ChatAnswerPayload.to_dict()` emits `content` as
-`list[str]`, an integer `turn` (legacy `turn_id` is dropped on parse), an optional `meta` object
-(e.g. `meta.billing.summary`), and `role: "operator"` on the operator-close path.
-`schema/chat.answer.json` still requires a string `content`, a string `turn_id` and `role: "assistant"`.
-**Decision taken:** SDK #2 only adds `meta` (open object, strict `meta.attachments` descriptors) so a
-final answer can carry generated files. The SDK binds generated files to an answer by `payload.turn_id`,
-or by `String(payload.turn)` when only `turn` is present (`message_ref_kind = "turn"`).
-**Owner action needed:** Decide whether `chat.answer.json` follows the Runtime shape (`content: string[]`,
-`turn: integer`, operator role). Runtime #24 must set each published file's `message_ref` to the turn
-identity the user-visible answer carries; any other value makes the SDK exclude those files.
+`list[str]`, an optional integer `turn` (legacy `turn_id` is dropped on parse), an optional `meta` object
+(e.g. `meta.billing.summary`), and `role: "operator"` on the operator-close path (no `turn`).
+**Decision taken (owner review 2026-10-15, resolved):** `schema/chat.answer.json` follows that serialization
+strictly: `content: string[]`, `role` in `assistant|operator`, `answer_kind: final`, optional integer `turn`,
+no `turn_id`, at most 8 `meta.attachments`, each bound with `message_ref = String(turn)` and
+`message_ref_kind = "turn"`. Mock servers in both bindings reject any other answer shape they are asked to send.
+Runtime #24 must publish generated files with exactly that `message_ref`.
+**Owner action needed:** None.
 
 ---
 
 ## D-12. `fi_` value-prefix check on file control responses
 
-**Found (SDK #2):** `assertSafePublicControl` / `assert_safe_public_control` reject any string value that
-starts with `fi_` anywhere in a `file::*` control response (`session_file_ws_v1.json`
-`forbidden_public_value_prefixes`). A user file legitimately named e.g. `fi_budget.csv` would make
-`listFiles()` / `downloadFile()` fail with `invalid_file_transfer`.
-**Decision taken:** Unchanged (frozen session-file-ws-v1 contract). Message attachment projection only applies
-the internal-prefix ban to identity fields (`file_ref`, `message_ref`), never to `filename`.
-**Owner action needed:** Decide whether the v1 control check should exempt `filename`.
+**Found (SDK #2):** `assertSafePublicControl` / `assert_safe_public_control` rejected any string value starting
+with `fi_` anywhere in a `file::*` control reply, so a user file named `fi_budget.csv` broke `listFiles()`.
+**Decision taken (owner review 2026-10-15, resolved):** Forbidden keys (`file_id`, `snapshot_id`, storage,
+ticket, `url`/`download_url`/`upload_url`/`download_mint_url`/`upload_path`, ...) are still rejected anywhere.
+The `fi_`/`sn_` value prefixes are rejected only in identity/credential fields (key matching
+`(?:^|_)(?:id|ref|token|secret)$`, e.g. `file_ref`, `transfer_id`, `message_ref`). Shared vectors:
+`contracts/session_file_ws_v1.json` `control_safety_vectors`.
+**Owner action needed:** None.
+
+---
+
+## D-13. `chat::partial` / `chat::echo` turn identity vs current Runtime
+
+**Found (SDK #2 follow-up):** Runtime `ChatPartialPayload` and `ChatEchoPayload` also serialize an integer `turn`,
+`list[str]` content and drop `turn_id`, while `schema/chat.partial.json` still requires a string `turn_id`
+and string `content`.
+**Decision taken:** Not changed in the SDK #2 follow-up (owner scoped the correction to `chat::answer`).
+Generated files bind only to answers, so this does not affect file ownership.
+**Owner action needed:** Decide whether `chat.partial.json` (and the echo `turn`) move to the Runtime shape.

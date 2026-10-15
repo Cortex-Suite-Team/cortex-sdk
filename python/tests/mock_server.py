@@ -19,7 +19,7 @@ import websockets
 import websockets.asyncio.server
 import websockets.exceptions
 
-from .schema_validation import SchemaViolation, validate_outbound_envelope
+from .schema_validation import SchemaViolation, validate_outbound_envelope, validate_server_answer
 
 FIXED_SESSION_ID = "sess_abc123"
 FIXED_ACCESS_TOKEN = "access_token_v1"
@@ -279,6 +279,7 @@ class MockServer:
         self.binary_frames: list[bytes] = []
         self.clients: Set[websockets.asyncio.server.ServerConnection] = set()
         self.schema_violations: list[SchemaViolation] = []
+        self.server_answer_violations: list[str] = []
         self._hang_writers: set[asyncio.StreamWriter] = set()
 
     @property
@@ -367,7 +368,14 @@ class MockServer:
                 except Exception:
                     pass
 
+    def _assert_server_answer(self, msg: dict[str, object]) -> None:
+        errors = validate_server_answer(msg)
+        if errors:
+            self.server_answer_violations.append(", ".join(errors))
+            raise AssertionError(f"mock server sent a non-Runtime chat::answer: {errors}")
+
     async def broadcast(self, msg: dict[str, object]) -> None:
+        self._assert_server_answer(msg)
         data = json.dumps(msg)
         for ws in list(self.clients):
             try:
@@ -380,6 +388,7 @@ class MockServer:
         ws: websockets.asyncio.server.ServerConnection,
         msg: dict[str, object],
     ) -> None:
+        self._assert_server_answer(msg)
         try:
             await ws.send(json.dumps(msg))
         except Exception:
@@ -403,6 +412,8 @@ class MockServer:
         await self._ws_server.wait_closed()
         self._http_server.shutdown()
         self._http_thread.join(timeout=2)
+        if self.server_answer_violations:
+            raise AssertionError(f"chat::answer schema violations: {self.server_answer_violations}")
 
 
 # ── factory ────────────────────────────────────────────────────────────────
@@ -615,10 +626,10 @@ async def start_mock_server(
 
                 if msg_type == "chat::message" and options.auto_chat_answer and injection is None:
                     await srv.send_to(ws, _make_envelope("chat::answer", {
-                        "content": "Mock answer",
+                        "content": ["Mock answer"],
                         "role": "assistant",
                         "answer_kind": "final",
-                        "turn_id": f"turn_{_next_seq()}",
+                        "turn": _next_seq(),
                     }))
 
                 if options.on_ws_message is not None:

@@ -19,7 +19,14 @@ MAGIC = b"CFT1"
 HEADER_BYTES = 24
 TRANSFER_ID = re.compile(r"^ft_[0-9a-f]{32}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
-FORBIDDEN_KEYS = {"file_id", "snapshot_id", "blob_ref", "storage_key", "ticket", "upload_ticket", "delivery_ticket", "file_link_secret", "instance_id"}
+FORBIDDEN_KEYS = {
+    "file_id", "snapshot_id", "blob_ref", "storage_key", "ticket", "upload_ticket", "delivery_ticket", "file_link_secret", "instance_id",
+    "url", "download_url", "upload_url", "download_mint_url", "upload_path",
+}
+# Internal identity prefixes are checked on identity/credential fields only, so
+# user-chosen text such as a filename "fi_budget.csv" stays valid.
+IDENTITY_KEY = re.compile(r"(?:^|_)(?:id|ref|token|secret)$")
+INTERNAL_IDENTITY_PREFIXES = ("fi_", "sn_")
 FILE_RESPONSE_TYPES = {"file::upload.ready", "file::upload.complete", "file::download.ready", "file::download.complete", "file::list.result"}
 
 
@@ -265,20 +272,20 @@ class FileTransferManager:
             raise error
 
 
-def assert_safe_public_control(value: object) -> None:
+def assert_safe_public_control(value: object, identity_field: bool = False) -> None:
     if isinstance(value, str):
-        if value.startswith("fi_"):
+        if identity_field and value.startswith(INTERNAL_IDENTITY_PREFIXES):
             raise make_error("invalid_file_transfer", "Internal File Layer identity leaked")
         return
     if isinstance(value, list):
         for item in value:
-            assert_safe_public_control(item)
+            assert_safe_public_control(item, identity_field)
         return
     if isinstance(value, dict):
         for key, nested in value.items():
             if key in FORBIDDEN_KEYS:
                 raise make_error("invalid_file_transfer", f"Forbidden public field: {key}")
-            assert_safe_public_control(nested)
+            assert_safe_public_control(nested, isinstance(key, str) and IDENTITY_KEY.search(key) is not None)
 
 
 def _require_transfer_id(value: object) -> str:

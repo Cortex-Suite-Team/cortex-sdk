@@ -73,3 +73,17 @@ def validate_outbound_envelope(envelope: dict[str, object]) -> list[SchemaViolat
         }))
 
     return violations
+
+
+def validate_server_answer(envelope: dict[str, object]) -> list[str]:
+    """Server-sent chat::answer payloads must match the Runtime serialization pinned
+    in chat.answer.json, so test doubles cannot drift from the real wire shape.
+    meta.attachments is left out: adversarial attachment tests send hostile
+    descriptors on purpose and have their own vectors."""
+    if envelope.get("type") != "chat::answer":
+        return []
+    payload = envelope.get("payload")
+    if isinstance(payload, dict) and isinstance(payload.get("meta"), dict):
+        payload = {**payload, "meta": {k: v for k, v in payload["meta"].items() if k != "attachments"}}
+    errors = sorted(_load_validator("chat.answer.json").iter_errors(payload), key=str)
+    return _format_errors(errors)

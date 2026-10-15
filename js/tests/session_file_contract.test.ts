@@ -16,6 +16,8 @@ const contract = JSON.parse(readFileSync(new URL('../../contracts/session_file_w
   public_error_codes: string[];
   forbidden_public_fields: string[];
   forbidden_public_value_prefixes: string[];
+  forbidden_value_prefix_key_pattern: string;
+  control_safety_vectors: Array<{ name: string; valid: boolean; payload: Record<string, unknown> }>;
 };
 
 describe('session file WS shared contract', () => {
@@ -59,8 +61,10 @@ describe('session file WS shared contract', () => {
     expect(contract.forbidden_public_fields).toEqual([
       'file_id', 'snapshot_id', 'blob_ref', 'storage_key', 'ticket', 'upload_ticket',
       'delivery_ticket', 'file_link_secret', 'instance_id',
+      'url', 'download_url', 'upload_url', 'download_mint_url', 'upload_path',
     ]);
-    expect(contract.forbidden_public_value_prefixes).toEqual(['fi_']);
+    expect(contract.forbidden_public_value_prefixes).toEqual(['fi_', 'sn_']);
+    expect(contract.forbidden_value_prefix_key_pattern).toBe('(?:^|_)(?:id|ref|token|secret)$');
     expect(contract.cft1).toMatchObject({
       magic_ascii: 'CFT1',
       magic_hex: '43465431',
@@ -70,6 +74,14 @@ describe('session file WS shared contract', () => {
       default_chunk_bytes: 262144,
     });
     expect(() => assertSafePublicControl({ nested: { storage_key: 'secret' } })).toThrow();
-    expect(() => assertSafePublicControl({ value: 'fi_private' })).toThrow();
+    expect(() => assertSafePublicControl({ file_ref: 'fi_private' })).toThrow();
+  });
+
+  it.each(contract.control_safety_vectors.map((v) => [v.name, v] as const))('control reply safety: %s', (_name, vector) => {
+    if (vector.valid) {
+      expect(() => assertSafePublicControl(vector.payload)).not.toThrow();
+    } else {
+      expect(() => assertSafePublicControl(vector.payload)).toThrow(expect.objectContaining({ code: 'invalid_file_transfer' }));
+    }
   });
 });

@@ -158,10 +158,10 @@ async def run_streaming_chat_scenario(schema_validation: bool = False) -> Scenar
                 "turn_id": "turn_002",
             }))
             await srv.send_to(ws, env("chat::answer", {
-                "content": "Quantum entanglement is a phenomenon where two particles remain correlated regardless of distance.",
+                "content": ["Quantum entanglement is a phenomenon where two particles remain correlated regardless of distance."],
                 "role": "assistant",
                 "answer_kind": "final",
-                "turn_id": "turn_002",
+                "turn": 2,
             }))
 
     server = await start_mock_server(
@@ -207,10 +207,10 @@ async def run_reconnect_resync_scenario(schema_validation: bool = False) -> Scen
                 "session_id": FIXED_SESSION_ID,
                 "seq": 1,
                 "payload": {
-                    "content": "Long task completed",
+                    "content": ["Long task completed"],
                     "role": "assistant",
                     "answer_kind": "final",
-                    "turn_id": "turn_003",
+                    "turn": 3,
                 },
                 "ts": "2026-04-04T00:00:00Z",
             })
@@ -263,10 +263,10 @@ async def run_auth_refresh_scenario(schema_validation: bool = False) -> Scenario
                 "session_id": FIXED_SESSION_ID,
                 "seq": 1,
                 "payload": {
-                    "content": "Response to first message",
+                    "content": ["Response to first message"],
                     "role": "assistant",
                     "answer_kind": "final",
-                    "turn_id": "turn_004",
+                    "turn": 4,
                 },
                 "ts": "2026-04-04T00:00:00Z",
             })
@@ -286,10 +286,10 @@ async def run_auth_refresh_scenario(schema_validation: bool = False) -> Scenario
                 "session_id": FIXED_SESSION_ID,
                 "seq": 2,
                 "payload": {
-                    "content": "Response to second message",
+                    "content": ["Response to second message"],
                     "role": "assistant",
                     "answer_kind": "final",
-                    "turn_id": "turn_005",
+                    "turn": 5,
                 },
                 "ts": "2026-04-04T00:00:00Z",
             })
@@ -317,7 +317,7 @@ async def run_auth_refresh_scenario(schema_validation: bool = False) -> Scenario
         await client.send_message("First message before refresh")
         await wait_for(
             lambda: any(
-                msg["type"] == "chat::answer" and msg["payload"].get("turn_id") == "turn_004"
+                msg["type"] == "chat::answer" and msg["payload"].get("turn") == 4
                 for msg in received
             ),
             timeout=3.0,
@@ -327,7 +327,7 @@ async def run_auth_refresh_scenario(schema_validation: bool = False) -> Scenario
         await client.send_message("Second message after refresh")
         await wait_for(
             lambda: any(
-                msg["type"] == "chat::answer" and msg["payload"].get("turn_id") == "turn_005"
+                msg["type"] == "chat::answer" and msg["payload"].get("turn") == 5
                 for msg in received
             ),
             timeout=3.0,
@@ -351,10 +351,10 @@ async def run_file_upload_scenario(schema_validation: bool = False) -> ScenarioE
                 "session_id": FIXED_SESSION_ID,
                 "seq": 1,
                 "payload": {
-                    "content": "The document covers three main topics.",
+                    "content": ["The document covers three main topics."],
                     "role": "assistant",
                     "answer_kind": "final",
-                    "turn_id": "turn_006",
+                    "turn": 6,
                 },
                 "ts": "2026-04-04T00:00:00Z",
             })

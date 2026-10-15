@@ -14,6 +14,7 @@ import {
   parseMessageAttachments,
   parsePublicAttachment,
   parseSessionFileList,
+  sanitizeMessageAttachments,
 } from '../src/files.js';
 import { MAX_ATTACHMENTS_PER_MESSAGE } from '../src/constants.js';
 import type { CortexMessage, SessionFileAttachmentInput, SessionFileDescriptor } from '../src/types.js';
@@ -33,18 +34,8 @@ function schema(name: string) {
   return validators.get(name)!;
 }
 
-function answerWith(attachments: unknown): CortexMessage {
-  return {
-    type: 'chat::answer', schema: '1.0', session_id: FIXED_SESSION_ID, ts: new Date().toISOString(),
-    payload: { ...fixture.messages.chat_answer, meta: { attachments } },
-  };
-}
-
-function echoWith(attachments: unknown): CortexMessage {
-  return {
-    type: 'chat::echo', schema: '1.0', session_id: FIXED_SESSION_ID, ts: new Date().toISOString(),
-    payload: { ...fixture.messages.chat_echo, meta: { client_msg_id: fixture.client_msg_id, attachments } },
-  };
+function message(type: string, payload: Record<string, unknown>): CortexMessage {
+  return { type, schema: '1.0', session_id: FIXED_SESSION_ID, ts: new Date().toISOString(), payload: structuredClone(payload) };
 }
 
 describe('session file attachments contract fixture', () => {
@@ -92,21 +83,23 @@ describe('session file attachments contract fixture', () => {
     expect(parsePublicAttachment(vector.input)).toEqual(vector.expected);
   });
 
-  it.each(fixture.answer_projection_cases.map((c) => [c.name, c] as const))('answer attachments: %s', (_name, vector) => {
-    expect(parseMessageAttachments(answerWith(vector.attachments)).map((d) => d.file_ref)).toEqual(vector.expected_refs);
+  it.each(fixture.message_projection_cases.map((c) => [c.name, c] as const))('message attachments: %s', (_name, vector) => {
+    expect(parseMessageAttachments(message(vector.type, vector.payload)).map((d) => d.file_ref)).toEqual(vector.expected_refs);
+    // The in-place sanitizer used before dispatch agrees with the projection.
+    const sanitized = sanitizeMessageAttachments(message(vector.type, vector.payload));
+    const meta = sanitized.payload['meta'] as Record<string, unknown> | undefined;
+    expect(((meta?.['attachments'] ?? []) as SessionFileDescriptor[]).map((d) => d.file_ref)).toEqual(vector.expected_refs);
   });
 
-  it.each(fixture.echo_projection_cases.map((c) => [c.name, c] as const))('echo attachments: %s', (_name, vector) => {
-    expect(parseMessageAttachments(echoWith(vector.attachments)).map((d) => d.file_ref)).toEqual(vector.expected_refs);
+  it.each(fixture.runtime_answer_schema_cases.map((c) => [c.name, c] as const))('Runtime chat::answer schema: %s', (_name, vector) => {
+    const validate = schema('chat.answer.json');
+    expect([vector.name, validate(vector.payload)]).toEqual([vector.name, vector.valid]);
   });
 
-  it('binds an answer by numeric turn as well as turn_id', () => {
-    const outputs = fixture.outputs.map((file) => ({ ...file.descriptor, message_ref: '7' }));
-    const byTurn: CortexMessage = {
-      type: 'chat::answer', schema: '1.0', ts: '', payload: { content: ['x'], role: 'assistant', answer_kind: 'final', turn: 7, meta: { attachments: outputs } },
-    };
-    expect(parseMessageAttachments(byTurn)).toEqual(outputs);
-    expect(parseMessageAttachments({ ...byTurn, payload: { ...byTurn.payload, turn: 8 } })).toEqual([]);
+  it('keeps legitimate unbound entries in file::list', () => {
+    const files = fixture.unbound_list_entries.map((entry) => entry.descriptor);
+    expect(schema('file.list.result.json')({ files, total: files.length })).toBe(true);
+    expect(parseSessionFileList({ files, total: files.length }).files).toEqual(files);
   });
 
   it.each(fixture.send_rejections.map((c) => [c.name, c] as const))('send rejection: %s', (_name, vector) => {
@@ -252,11 +245,15 @@ describe('EA 3-input / 2-output session files over the SDK WebSocket', () => {
       await expect(client.downloadFile('sf_out_missing')).rejects.toMatchObject({ code: 'file_unavailable' });
       fake.records.get(fixture.outputs[0]!.descriptor.file_ref)!.descriptor = { ...fixture.outputs[0]!.descriptor, state: 'expired' };
       await expect(client.downloadFile(fixture.outputs[0]!.descriptor.file_ref)).rejects.toMatchObject({ code: 'file_unavailable' });
+      // D-12: a user-visible filename that merely starts with fi_ is not an internal identity.
+      const second = fixture.outputs[1]!;
+      fake.records.get(second.descriptor.file_ref)!.descriptor = { ...second.descriptor, filename: 'fi_budget.csv' };
       const listed = await client.listFiles();
-      expect(listed.files.map((file) => [file.file_ref, file.state])).toEqual([
-        [fixture.outputs[0]!.descriptor.file_ref, 'expired'],
-        [fixture.outputs[1]!.descriptor.file_ref, 'available'],
+      expect(listed.files.map((file) => [file.file_ref, file.state, file.filename])).toEqual([
+        [fixture.outputs[0]!.descriptor.file_ref, 'expired', fixture.outputs[0]!.descriptor.filename],
+        [second.descriptor.file_ref, 'available', 'fi_budget.csv'],
       ]);
+      expect(sha256(new Uint8Array(await (await client.downloadFile(second.descriptor.file_ref)).arrayBuffer()))).toBe(second.sha256);
       // A message-supplied URL is never a download path: only sf_ refs are accepted.
       await expect(client.downloadFile('https://evil.example/f')).rejects.toMatchObject({ code: 'file_operation_failed' });
       await expect(client.downloadFile('fi_0123456789abcdef')).rejects.toMatchObject({ code: 'file_operation_failed' });
@@ -270,5 +267,16 @@ describe('EA 3-input / 2-output session files over the SDK WebSocket', () => {
   it.each(fixture.server_attachment_errors.map((c) => [c.name, c] as const))('catalog classifies %s', async (_name, vector) => {
     const { lookupError } = await import('../src/errors.js');
     expect(lookupError(vector.payload.code)).toEqual({ code: vector.payload.code, retryable: vector.retryable, fatal: vector.fatal });
+  });
+});
+
+describe('test doubles follow the Runtime chat::answer shape', () => {
+  it('mock server refuses a legacy turn_id / string-content answer', async () => {
+    const server = await startMockServer({});
+    expect(() => server.broadcast({
+      type: 'chat::answer', schema: '1.0', ts: new Date().toISOString(),
+      payload: { content: 'legacy', role: 'assistant', answer_kind: 'final', turn_id: 'turn_1' },
+    })).toThrow(/non-Runtime chat::answer/);
+    await expect(server.close()).rejects.toThrow(/schema violations/);
   });
 });

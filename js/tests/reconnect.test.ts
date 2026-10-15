@@ -34,10 +34,10 @@ describe('reconnect_resync', () => {
             session_id: FIXED_SESSION_ID,
             seq: 1,
             payload: {
-              content: 'Long task completed',
+              content: ['Long task completed'],
               role: 'assistant',
               answer_kind: 'final',
-              turn_id: 'turn_003',
+              turn: 3,
             },
             ts: new Date().toISOString(),
           });
@@ -68,8 +68,8 @@ describe('reconnect_resync', () => {
       await waitFor(() => received.some(m => m.type === 'chat::answer' && m.payload['answer_kind'] === 'final'), 5000);
 
       const answer = received.find(m => m.type === 'chat::answer' && m.payload['answer_kind'] === 'final')!;
-      expect(answer.payload['content']).toBe('Long task completed');
-      expect(answer.payload['turn_id']).toBe('turn_003');
+      expect(answer.payload['content']).toEqual(['Long task completed']);
+      expect(answer.payload['turn']).toBe(3);
 
       // Verify resync payload had last_seq
       const resyncMsg = server.received.find(m => m['type'] === 'system::resync');

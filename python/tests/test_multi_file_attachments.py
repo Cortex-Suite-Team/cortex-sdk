@@ -7,6 +7,7 @@ source-level qualification, NOT physical SessionManager/File Link evidence.
 from __future__ import annotations
 
 import asyncio
+import copy
 import hashlib
 import json
 import re
@@ -23,6 +24,7 @@ from cortex_sdk.files import (
     parse_message_attachments,
     parse_public_attachment,
     parse_session_file_list,
+    sanitize_message_attachments,
 )
 
 from .helpers import make_client, wait_for
@@ -46,14 +48,8 @@ def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _answer_with(attachments: object) -> dict[str, Any]:
-    return {"type": "chat::answer", "schema": "1.0", "session_id": FIXED_SESSION_ID, "ts": "",
-            "payload": {**MESSAGES["chat_answer"], "meta": {"attachments": attachments}}}
-
-
-def _echo_with(attachments: object) -> dict[str, Any]:
-    return {"type": "chat::echo", "schema": "1.0", "session_id": FIXED_SESSION_ID, "ts": "",
-            "payload": {**MESSAGES["chat_echo"], "meta": {"client_msg_id": FIXTURE["client_msg_id"], "attachments": attachments}}}
+def _message(message_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+    return {"type": message_type, "schema": "1.0", "session_id": FIXED_SESSION_ID, "ts": "", "payload": copy.deepcopy(payload)}
 
 
 def _is_fixture_echo(message: Any) -> bool:
@@ -97,21 +93,25 @@ def test_public_projection(vector: dict[str, Any]) -> None:
     assert parse_public_attachment(vector["input"]) == vector["expected"]
 
 
-@pytest.mark.parametrize("vector", FIXTURE["answer_projection_cases"], ids=lambda v: v["name"])
-def test_answer_attachments(vector: dict[str, Any]) -> None:
-    assert [d["file_ref"] for d in parse_message_attachments(_answer_with(vector["attachments"]))] == vector["expected_refs"]
+@pytest.mark.parametrize("vector", FIXTURE["message_projection_cases"], ids=lambda v: v["name"])
+def test_message_attachments(vector: dict[str, Any]) -> None:
+    message = _message(vector["type"], vector["payload"])
+    assert [d["file_ref"] for d in parse_message_attachments(message)] == vector["expected_refs"]
+    # The in-place sanitizer used before dispatch agrees with the projection.
+    sanitized = sanitize_message_attachments(_message(vector["type"], vector["payload"]))
+    meta = sanitized["payload"].get("meta") or {}
+    assert [d["file_ref"] for d in meta.get("attachments", [])] == vector["expected_refs"]
 
 
-@pytest.mark.parametrize("vector", FIXTURE["echo_projection_cases"], ids=lambda v: v["name"])
-def test_echo_attachments(vector: dict[str, Any]) -> None:
-    assert [d["file_ref"] for d in parse_message_attachments(_echo_with(vector["attachments"]))] == vector["expected_refs"]
+@pytest.mark.parametrize("vector", FIXTURE["runtime_answer_schema_cases"], ids=lambda v: v["name"])
+def test_runtime_answer_schema(vector: dict[str, Any]) -> None:
+    assert _validator("chat.answer.json").is_valid(vector["payload"]) is vector["valid"]
 
 
-def test_answer_binds_by_numeric_turn() -> None:
-    outputs = [{**file["descriptor"], "message_ref": "7"} for file in OUTPUTS]
-    message = {"type": "chat::answer", "payload": {"content": ["x"], "role": "assistant", "answer_kind": "final", "turn": 7, "meta": {"attachments": outputs}}}
-    assert parse_message_attachments(message) == outputs
-    assert parse_message_attachments({**message, "payload": {**message["payload"], "turn": 8}}) == []
+def test_unbound_file_list_entries_are_kept() -> None:
+    files = [entry["descriptor"] for entry in FIXTURE["unbound_list_entries"]]
+    assert _validator("file.list.result.json").is_valid({"files": files, "total": len(files)})
+    assert parse_session_file_list({"files": files, "total": len(files)})["files"] == files
 
 
 @pytest.mark.parametrize("vector", FIXTURE["send_rejections"], ids=lambda v: v["name"])
@@ -352,10 +352,14 @@ async def test_attachment_and_download_errors_do_not_fail_the_session() -> None:
         with pytest.raises(CortexError) as expired:
             await client.download_file(first)
         assert expired.value.code == "file_unavailable"
+        # D-12: a user-visible filename that merely starts with fi_ is not an internal identity.
+        second = OUTPUTS[1]["descriptor"]["file_ref"]
+        fake.records[second]["descriptor"] = {**fake.records[second]["descriptor"], "filename": "fi_budget.csv"}
         listed = await client.list_files()
-        assert [(f["file_ref"], f.get("state")) for f in listed["files"]] == [
-            (first, "expired"), (OUTPUTS[1]["descriptor"]["file_ref"], "available"),
+        assert [(f["file_ref"], f.get("state"), f.get("filename")) for f in listed["files"]] == [
+            (first, "expired", OUTPUTS[0]["descriptor"]["filename"]), (second, "available", "fi_budget.csv"),
         ]
+        assert _sha256(await client.download_file(second)) == OUTPUTS[1]["sha256"]
         for hostile in ("https://evil.example/f", "fi_0123456789abcdef"):
             with pytest.raises(CortexError) as rejected:
                 await client.download_file(hostile)
@@ -363,4 +367,14 @@ async def test_attachment_and_download_errors_do_not_fail_the_session() -> None:
         assert client.session_state == "ACTIVE"
     finally:
         await client.disconnect()
+        await server.close()
+
+
+@pytest.mark.asyncio
+async def test_mock_server_refuses_legacy_answer_shape() -> None:
+    server = await start_mock_server()
+    with pytest.raises(AssertionError, match="non-Runtime chat::answer"):
+        await server.broadcast({"type": "chat::answer", "schema": "1.0", "ts": "",
+                                "payload": {"content": "legacy", "role": "assistant", "answer_kind": "final", "turn_id": "turn_1"}})
+    with pytest.raises(AssertionError, match="schema violations"):
         await server.close()

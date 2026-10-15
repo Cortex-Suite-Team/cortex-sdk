@@ -136,10 +136,10 @@ export async function runStreamingChatScenario(options: ScenarioOptions = {}): P
           turn_id: 'turn_002',
         }));
         srv.sendTo(ws, makeEnv('chat::answer', {
-          content: 'Quantum entanglement is a phenomenon where two particles remain correlated regardless of distance.',
+          content: ['Quantum entanglement is a phenomenon where two particles remain correlated regardless of distance.'],
           role: 'assistant',
           answer_kind: 'final',
-          turn_id: 'turn_002',
+          turn: 2,
         }));
       }
     },
@@ -174,10 +174,10 @@ export async function runReconnectResyncScenario(options: ScenarioOptions = {}):
           session_id: FIXED_SESSION_ID,
           seq: 1,
           payload: {
-            content: 'Long task completed',
+            content: ['Long task completed'],
             role: 'assistant',
             answer_kind: 'final',
-            turn_id: 'turn_003',
+            turn: 3,
           },
           ts: new Date().toISOString(),
         });
@@ -225,10 +225,10 @@ export async function runAuthRefreshScenario(options: ScenarioOptions = {}): Pro
           session_id: FIXED_SESSION_ID,
           seq: 1,
           payload: {
-            content: 'Response to first message',
+            content: ['Response to first message'],
             role: 'assistant',
             answer_kind: 'final',
-            turn_id: 'turn_004',
+            turn: 4,
           },
           ts: new Date().toISOString(),
         });
@@ -248,10 +248,10 @@ export async function runAuthRefreshScenario(options: ScenarioOptions = {}): Pro
           session_id: FIXED_SESSION_ID,
           seq: 2,
           payload: {
-            content: 'Response to second message',
+            content: ['Response to second message'],
             role: 'assistant',
             answer_kind: 'final',
-            turn_id: 'turn_005',
+            turn: 5,
           },
           ts: new Date().toISOString(),
         });
@@ -269,11 +269,11 @@ export async function runAuthRefreshScenario(options: ScenarioOptions = {}): Pro
     await client.connect();
     await waitFor(() => client.sessionId !== null);
     await client.sendMessage({ content: 'First message before refresh' });
-    await waitFor(() => received.some((message) => message.type === 'chat::answer' && message.payload['turn_id'] === 'turn_004'), 3000);
+    await waitFor(() => received.some((message) => message.type === 'chat::answer' && message.payload['turn'] === 4), 3000);
     await waitFor(() => server.refreshCallCount >= 1, 5000);
     await waitFor(() => server.wsConnectionCount >= 2, 5000);
     await client.sendMessage({ content: 'Second message after refresh' });
-    await waitFor(() => received.some((message) => message.type === 'chat::answer' && message.payload['turn_id'] === 'turn_005'), 3000);
+    await waitFor(() => received.some((message) => message.type === 'chat::answer' && message.payload['turn'] === 5), 3000);
     return finalizeExecution('auth_refresh', client, server, received);
   } finally {
     await client.disconnect();
@@ -294,10 +294,10 @@ export async function runFileUploadScenario(options: ScenarioOptions = {}): Prom
           session_id: FIXED_SESSION_ID,
           seq: 1,
           payload: {
-            content: 'The document covers three main topics.',
+            content: ['The document covers three main topics.'],
             role: 'assistant',
             answer_kind: 'final',
-            turn_id: 'turn_006',
+            turn: 6,
           },
           ts: new Date().toISOString(),
         });

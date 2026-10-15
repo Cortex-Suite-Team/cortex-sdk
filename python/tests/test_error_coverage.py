@@ -67,10 +67,10 @@ async def test_auth_expired() -> None:
                 "session_id": "sess_abc123",
                 "seq": 1,
                 "payload": {
-                    "content": "Recovered after refresh",
+                    "content": ["Recovered after refresh"],
                     "role": "assistant",
                     "answer_kind": "final",
-                    "turn_id": "turn_auth_expired",
+                    "turn": 9,
                 },
                 "ts": "2026-04-04T00:00:00Z",
             })

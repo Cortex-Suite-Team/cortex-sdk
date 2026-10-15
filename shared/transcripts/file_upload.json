@@ -68,10 +68,10 @@
       "direction": "server",
       "type": "chat::answer",
       "payload": {
-        "content": "The document covers three main topics: introduction, methodology, and conclusions.",
+        "content": ["The document covers three main topics: introduction, methodology, and conclusions."],
         "role": "assistant",
         "answer_kind": "final",
-        "turn_id": "turn_006"
+        "turn": 6
       },
       "note": "session_id: sess_abc123, seq: 2"
     }

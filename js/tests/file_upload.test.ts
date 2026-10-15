@@ -21,10 +21,10 @@ describe('file_upload', () => {
             session_id: FIXED_SESSION_ID,
             seq: 1,
             payload: {
-              content: 'The document covers three main topics.',
+              content: ['The document covers three main topics.'],
               role: 'assistant',
               answer_kind: 'final',
-              turn_id: 'turn_006',
+              turn: 6,
             },
             ts: new Date().toISOString(),
           });
@@ -97,7 +97,7 @@ describe('file_upload', () => {
       expect(msgPayload['content']).toBe('Please summarize this document.');
 
       const answer = received.find(m => m.type === 'chat::answer' && m.payload['answer_kind'] === 'final')!;
-      expect(answer.payload['turn_id']).toBe('turn_006');
+      expect(answer.payload['turn']).toBe(6);
     } finally {
       await client.disconnect();
       await server.close();

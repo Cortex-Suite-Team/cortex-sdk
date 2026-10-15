@@ -86,3 +86,20 @@ export function validateOutboundEnvelope(envelope: Record<string, unknown>): Sch
 
   return violations;
 }
+
+/**
+ * Server-sent chat::answer payloads must match the Runtime serialization pinned
+ * in chat.answer.json, so test doubles cannot drift from the real wire shape.
+ * meta.attachments is left out: adversarial attachment tests send hostile
+ * descriptors on purpose and have their own vectors.
+ */
+export function validateServerAnswer(envelope: Record<string, unknown>): string[] {
+  if (envelope.type !== 'chat::answer') return [];
+  const payload = envelope.payload as Record<string, unknown> | undefined;
+  const meta = payload?.['meta'];
+  const shape = meta && typeof meta === 'object' && !Array.isArray(meta)
+    ? { ...payload, meta: Object.fromEntries(Object.entries(meta).filter(([key]) => key !== 'attachments')) }
+    : payload;
+  const validator = loadValidator('chat.answer.json');
+  return validator(shape) ? [] : formatErrors(validator.errors);
+}

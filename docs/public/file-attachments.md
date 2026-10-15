@@ -77,7 +77,7 @@ const client = new CortexClient({
   apiKey: "your-api-key",
   onMessage: (msg) => {
     if (msg.type === "chat::answer") {
-      console.log(msg.payload.content);
+      console.log(msg.payload.content.join(""));
     }
   },
 });
@@ -101,7 +101,7 @@ from cortex_sdk import CortexClient
 
 def on_message(msg):
     if msg["type"] == "chat::answer":
-        print(msg["payload"]["content"])
+        print("".join(msg["payload"]["content"]))
 
 async def main():
     client = CortexClient(
@@ -184,18 +184,18 @@ Files produced for the user arrive on the final answer, in `chat::answer` `paylo
 {
   "type": "chat::answer",
   "payload": {
-    "content": "Here are the regional deltas and a summary.",
+    "content": ["Here are the regional deltas and a summary."],
     "role": "assistant",
     "answer_kind": "final",
-    "turn_id": "turn_ea_0007",
+    "turn": 7,
     "meta": {
       "attachments": [
         { "file_ref": "sf_out_01HZZ1", "filename": "delta.csv", "content_type": "text/csv", "size": 38,
           "owner_role": "assistant", "direction": "outbound", "state": "available",
-          "message_ref": "turn_ea_0007", "message_ref_kind": "turn" },
+          "message_ref": "7", "message_ref_kind": "turn" },
         { "file_ref": "sf_out_01HZZ2", "filename": "summary.md", "content_type": "text/markdown", "size": 49,
           "owner_role": "assistant", "direction": "outbound", "state": "available",
-          "message_ref": "turn_ea_0007", "message_ref_kind": "turn" }
+          "message_ref": "7", "message_ref_kind": "turn" }
       ]
     }
   }
@@ -209,7 +209,7 @@ Files produced for the user arrive on the final answer, in `chat::answer` `paylo
 | `owner_role` | `user` for uploads, `assistant` for generated files |
 | `direction` | `inbound` for uploads, `outbound` for generated files |
 | `state` | `available`, `expired`, `deleted` or `quarantined` |
-| `message_ref`, `message_ref_kind` | The message the file belongs to: the user message's `client_msg_id` (`client_msg_id`) or the answer's turn (`turn`) |
+| `message_ref`, `message_ref_kind` | The message the file belongs to: the user message's `client_msg_id` (`client_msg_id`) or the answer's turn as a string, `String(turn)` (`turn`) |
 
 The user's own attachments are echoed the same way in `chat::echo` `payload.meta.attachments` (`owner_role: "user"`, `direction: "inbound"`, `message_ref` = the message's `client_msg_id`).
 
@@ -217,7 +217,8 @@ Before a message reaches your handler, the SDK replaces `payload.meta.attachment
 
 - only the nine fields above survive; internal identities (`file_id`, `snapshot_id`, `fi_...`, `sn_...`), scope, storage keys, tickets and any URL such as `download_mint_url` are removed;
 - a descriptor with a missing or invalid public field is dropped;
-- an answer keeps only `assistant`/`outbound` files bound to its own turn, and an echo only `user`/`inbound` files bound to its own `client_msg_id`; a user upload repeated inside an answer is not an answer attachment;
+- an answer keeps only `assistant`/`outbound` files whose `message_ref_kind` is `turn` and whose `message_ref` equals `String(payload.turn)`; an echo keeps only `user`/`inbound` files whose `message_ref_kind` is `client_msg_id` and whose `message_ref` equals its `meta.client_msg_id`. Both fields are required and must match exactly. An answer without `turn` (for example an operator close), an echo without `client_msg_id`, and any other message type own no files. A user upload repeated inside an answer is therefore never an answer attachment;
+- at most 8 files are kept per message;
 - a repeated `file_ref` is kept once, in its first position.
 
 Other `meta` keys of the answer pass through unchanged.
@@ -249,7 +250,7 @@ for file in (answer["payload"].get("meta") or {}).get("attachments", []):
 
 ## Listing session files after reconnect
 
-`listFiles()` / `list_files()` returns every session file you can see (uploads and generated files, oldest first) with the same public descriptor fields, so files can be re-associated with their messages through `message_ref` after a reconnect or page reload.
+`listFiles()` / `list_files()` returns every session file you can see (uploads and generated files, oldest first) with the same public descriptor fields, so files can be re-associated with their messages through `message_ref` after a reconnect or page reload. An upload that has not been sent with a message yet is listed without `message_ref`/`message_ref_kind`.
 
 ```js
 // JavaScript (Browser and Node.js)

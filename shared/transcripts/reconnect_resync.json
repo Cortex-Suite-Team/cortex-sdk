@@ -53,10 +53,10 @@
       "direction": "server",
       "type": "chat::answer",
       "payload": {
-        "content": "Long task completed",
+        "content": ["Long task completed"],
         "role": "assistant",
         "answer_kind": "final",
-        "turn_id": "turn_003"
+        "turn": 3
       },
       "note": "session_id: sess_abc123, seq: 2 — server replays the answer that was missed during the channel drop"
     }

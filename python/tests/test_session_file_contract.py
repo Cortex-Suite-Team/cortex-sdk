@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from cortex_sdk.errors import CortexError
 from cortex_sdk.file_transfer import assert_safe_public_control, decode_cft1, encode_cft1
 from cortex_sdk.upload import create_upload_source
 
@@ -31,7 +32,7 @@ def test_identity_firewall() -> None:
     with pytest.raises(Exception):
         assert_safe_public_control({"nested": {"storage_key": "secret"}})
     with pytest.raises(Exception):
-        assert_safe_public_control({"value": "fi_private"})
+        assert_safe_public_control({"file_ref": "fi_private"})
 
 
 def test_complete_fixture_drift_lock() -> None:
@@ -60,8 +61,10 @@ def test_complete_fixture_drift_lock() -> None:
     assert CONTRACT["forbidden_public_fields"] == [
         "file_id", "snapshot_id", "blob_ref", "storage_key", "ticket", "upload_ticket",
         "delivery_ticket", "file_link_secret", "instance_id",
+        "url", "download_url", "upload_url", "download_mint_url", "upload_path",
     ]
-    assert CONTRACT["forbidden_public_value_prefixes"] == ["fi_"]
+    assert CONTRACT["forbidden_public_value_prefixes"] == ["fi_", "sn_"]
+    assert CONTRACT["forbidden_value_prefix_key_pattern"] == "(?:^|_)(?:id|ref|token|secret)$"
     assert {key: CONTRACT["cft1"][key] for key in (
         "magic_ascii", "magic_hex", "header_bytes", "transfer_id_pattern",
         "sequence_encoding", "default_chunk_bytes",
@@ -73,6 +76,16 @@ def test_complete_fixture_drift_lock() -> None:
         "sequence_encoding": "uint32-big-endian",
         "default_chunk_bytes": 262144,
     }
+
+
+@pytest.mark.parametrize("vector", CONTRACT["control_safety_vectors"], ids=lambda v: v["name"])
+def test_control_reply_safety(vector: dict) -> None:
+    if vector["valid"]:
+        assert_safe_public_control(vector["payload"])
+    else:
+        with pytest.raises(CortexError) as exc_info:
+            assert_safe_public_control(vector["payload"])
+        assert exc_info.value.code == "invalid_file_transfer"
 
 
 @pytest.mark.asyncio

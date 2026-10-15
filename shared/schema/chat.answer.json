@@ -2,27 +2,30 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://cortex.local/sdk/schema/chat.answer.json",
   "title": "chat::answer Payload",
-  "description": "Final assistant answer from the runtime. Terminates a turn. The answer_kind field remains for compatibility; active outbound mapping uses answer_kind=final. Generated files arrive as public session-file descriptors in meta.attachments, bound to this answer's turn (message_ref = turn_id, message_ref_kind = turn).",
+  "description": "Final answer as serialized by Runtime ChatAnswerPayload.to_dict(). Terminates a turn. Generated files arrive as public session-file descriptors in meta.attachments, bound to this answer's turn: message_ref = String(turn), message_ref_kind = turn.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["content", "role", "answer_kind", "turn_id"],
+  "required": ["content", "role", "answer_kind"],
   "properties": {
     "content": {
-      "type": "string",
-      "description": "Assistant-visible answer content"
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Visible answer text blocks, in order"
     },
     "role": {
       "type": "string",
-      "const": "assistant"
+      "enum": ["assistant", "operator"],
+      "description": "assistant for runtime answers; operator when an operator closes the interaction"
     },
     "answer_kind": {
       "type": "string",
       "enum": ["final"],
-      "description": "final = regular final assistant answer"
+      "description": "final = regular final answer"
     },
-    "turn_id": {
-      "type": "string",
-      "description": "Turn correlation id; matches turn_id of preceding chat::partial messages if any"
+    "turn": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Turn number; absent when the answer is not tied to a turn (for example an operator close)"
     },
     "meta": {
       "type": "object",
@@ -30,11 +33,11 @@
       "properties": {
         "attachments": {
           "type": "array",
-          "maxItems": 16,
+          "maxItems": 8,
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["file_ref", "filename", "content_type", "size", "owner_role", "direction", "state"],
+            "required": ["file_ref", "filename", "content_type", "size", "owner_role", "direction", "state", "message_ref", "message_ref_kind"],
             "properties": {
               "file_ref": {
                 "type": "string",
@@ -75,7 +78,7 @@
               }
             }
           },
-          "description": "Ordered public descriptors of files generated for this answer, re-projected by SessionManager from its own sf_ records. Never carries fi_/sn_ identity, scope, storage keys, tickets or URLs."
+          "description": "Ordered public descriptors of files generated for this answer (EA ceiling 8), re-projected by SessionManager from its own sf_ records. Never carries fi_/sn_ identity, scope, storage keys, tickets or URLs."
         }
       },
       "description": "Optional answer metadata. Runtime metadata keys (for example billing summaries) pass through; only meta.attachments is part of the public file contract."

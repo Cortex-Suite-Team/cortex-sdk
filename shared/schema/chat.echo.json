@@ -31,7 +31,7 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["file_ref", "filename", "content_type", "size", "owner_role", "direction", "state"],
+            "required": ["file_ref", "filename", "content_type", "size", "owner_role", "direction", "state", "message_ref", "message_ref_kind"],
             "properties": {
               "file_ref": {
                 "type": "string",
