@@ -84,7 +84,7 @@ jobs:
           path: |
             js/dist/
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 90
 
   build-python:
     runs-on: ubuntu-latest
@@ -123,7 +123,7 @@ jobs:
           name: python-dist
           path: python/dist/*
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 90
 
   verify-release:
     runs-on: ubuntu-latest
@@ -313,3 +313,43 @@ jobs:
           files: |
             release-assets/bundles/cortex-sdk-js-dist-${{ github.ref_name }}.zip
             release-assets/python-dist/**
+
+  prune-build-artifacts:
+    needs: [publish-pypi, publish-npm, github-release]
+    if: ${{ always() && needs.publish-pypi.result == 'success' && needs.publish-npm.result == 'success' && (needs.github-release.result == 'success' || needs.github-release.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Remove previous successful build artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const types = [{"name":"js-dist"},{"name":"python-dist"}];
+            const { owner, repo } = context.repo;
+            const run_id = context.runId;
+            const options = { owner, repo, per_page: 100 };
+            const current = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, { ...options, run_id });
+            const all = await github.paginate(github.rest.actions.listArtifactsForRepo, options);
+            const runStatuses = new Map();
+            for (const type of types) {
+              const matches = artifact => type.name ? artifact.name === type.name : artifact.name.startsWith(type.prefix);
+              const mine = current.filter(artifact => matches(artifact) && !artifact.expired)
+                .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id).at(-1);
+              if (!mine) {
+                core.info(`No new artifact for ${JSON.stringify(type)} in run ${run_id}; keeping previous versions.`);
+                continue;
+              }
+              for (const artifact of all.filter(matches)) {
+                if (artifact.id === mine.id || artifact.created_at >= mine.created_at || artifact.expired) continue;
+                const oldRunId = artifact.workflow_run?.id;
+                if (!oldRunId || oldRunId === run_id) continue;
+                if (!runStatuses.has(oldRunId)) {
+                  const { data } = await github.rest.actions.getWorkflowRun({ owner, repo, run_id: oldRunId });
+                  runStatuses.set(oldRunId, data.status);
+                }
+                if (runStatuses.get(oldRunId) !== 'completed') continue;
+                await github.rest.actions.deleteArtifact({ owner, repo, artifact_id: artifact.id });
+                core.info(`Deleted previous ${artifact.name} artifact ${artifact.id}; retained ${mine.id}.`);
+              }
+            }
