@@ -84,7 +84,7 @@ jobs:
           path: |
             js/dist/
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 14
 
   build-python:
     runs-on: ubuntu-latest
@@ -123,7 +123,7 @@ jobs:
           name: python-dist
           path: python/dist/*
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 14
 
   verify-release:
     runs-on: ubuntu-latest
