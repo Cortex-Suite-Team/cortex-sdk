@@ -39,21 +39,35 @@ function request(value: unknown): HumanAssistanceRequest | null {
 }
 function status(value: unknown): HumanAssistanceStatus | null {
   if (!object(value) || !keys(value, ['version', 'request_id', 'status'], ['client_reply_id', 'reason'])
-      || value['version'] !== 1 || !id(value['request_id']) || !STATUSES.has(String(value['status']))) return null;
+      || value['version'] !== 1 || !id(value['request_id'])
+      || typeof value['status'] !== 'string' || !STATUSES.has(value['status'])) return null;
   if (value['status'] === 'reply_accepted' || value['status'] === 'reply_rejected') {
     if (!id(value['client_reply_id'])) return null;
   } else if ('client_reply_id' in value) return null;
   if (value['status'] === 'reply_rejected') {
-    if (!REASONS.has(String(value['reason']))) return null;
+    if (typeof value['reason'] !== 'string' || !REASONS.has(value['reason'])) return null;
   } else if ('reason' in value) return null;
   return value as unknown as HumanAssistanceStatus;
 }
 
 export class HumanAssistanceInbox {
   private readonly entries = new Map<string, { request: HumanAssistanceRequest; state: string; seenStatuses: Set<string> }>();
+  private readonly terminalBeforeRequest = new Set<string>();
+  private terminalOverflow = false;
   private readonly submissions = new Map<string, string>();
 
-  clear(): void { this.entries.clear(); this.submissions.clear(); }
+  clear(): void {
+    this.entries.clear(); this.terminalBeforeRequest.clear(); this.terminalOverflow = false; this.submissions.clear();
+  }
+
+  private rememberTerminal(requestId: string): void {
+    if (this.terminalBeforeRequest.has(requestId)) return;
+    if (this.terminalBeforeRequest.size >= MAX_REQUESTS) {
+      this.terminalOverflow = true;
+      return;
+    }
+    this.terminalBeforeRequest.add(requestId);
+  }
 
   requests(): HumanAssistanceRequest[] {
     return [...this.entries.values()].filter((entry) => entry.state === 'pending')
@@ -66,11 +80,15 @@ export class HumanAssistanceInbox {
     if (msg.type === 'human_assistance::request') {
       const parsed = request(msg.payload);
       if (!parsed) return null;
+      if (this.terminalOverflow || this.terminalBeforeRequest.has(parsed.request_id)) return null;
       const old = this.entries.get(parsed.request_id);
       if (old) return null; // Replay is idempotent; a conflicting same-ID request also fails closed.
       if (this.entries.size >= MAX_REQUESTS) {
         const terminal = [...this.entries].find(([, entry]) => TERMINAL.has(entry.state));
-        if (terminal) this.entries.delete(terminal[0]);
+        if (terminal) {
+          this.rememberTerminal(terminal[0]);
+          this.entries.delete(terminal[0]);
+        }
       }
       if (this.entries.size >= MAX_REQUESTS) return null;
       this.entries.set(parsed.request_id, { request: structuredClone(parsed), state: 'pending', seenStatuses: new Set() });
@@ -80,7 +98,11 @@ export class HumanAssistanceInbox {
       const parsed = status(msg.payload);
       if (!parsed) return null;
       const entry = this.entries.get(parsed.request_id);
-      if (!entry || TERMINAL.has(entry.state)) return null;
+      if (!entry) {
+        if (TERMINAL.has(parsed.status)) this.rememberTerminal(parsed.request_id);
+        return null;
+      }
+      if (TERMINAL.has(entry.state)) return null;
       const signature = `${parsed.status}:${parsed.client_reply_id ?? ''}:${parsed.reason ?? ''}`;
       if (entry.seenStatuses.has(signature)) return null;
       entry.seenStatuses.add(signature);

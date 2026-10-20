@@ -90,16 +90,28 @@ def _status(value: object) -> HumanAssistanceStatus | None:
 class HumanAssistanceInbox:
     def __init__(self) -> None:
         self._entries: dict[str, tuple[HumanAssistanceRequest, str]] = {}
+        self._terminal_before_request: dict[str, None] = {}
+        self._terminal_overflow = False
         self._seen_statuses: dict[str, set[str]] = {}
         self._submissions: dict[str, str] = {}
 
     def clear(self) -> None:
         self._entries.clear()
+        self._terminal_before_request.clear()
+        self._terminal_overflow = False
         self._seen_statuses.clear()
         self._submissions.clear()
 
     def requests(self) -> list[HumanAssistanceRequest]:
         return [copy.deepcopy(row[0]) for row in self._entries.values() if row[1] == "pending"]
+
+    def _remember_terminal(self, request_id: str) -> None:
+        if request_id in self._terminal_before_request:
+            return
+        if len(self._terminal_before_request) >= _MAX_REQUESTS:
+            self._terminal_overflow = True
+            return
+        self._terminal_before_request[request_id] = None
 
     def handle(self, message: Mapping[str, object], current_session_id: str | None) -> HumanAssistanceNotification | None:
         if (not current_session_id or message.get("schema") != "1.0"
@@ -108,11 +120,13 @@ class HumanAssistanceInbox:
         payload = message.get("payload")
         if message.get("type") == "human_assistance::request":
             parsed = _request(payload)
-            if parsed is None or parsed["request_id"] in self._entries:
+            if (parsed is None or parsed["request_id"] in self._entries
+                    or self._terminal_overflow or parsed["request_id"] in self._terminal_before_request):
                 return None
             if len(self._entries) >= _MAX_REQUESTS:
                 terminal = next((key for key, row in self._entries.items() if row[1] in _TERMINAL), None)
                 if terminal is not None:
+                    self._remember_terminal(terminal)
                     del self._entries[terminal]
                     del self._seen_statuses[terminal]
             if len(self._entries) >= _MAX_REQUESTS:
@@ -125,7 +139,11 @@ class HumanAssistanceInbox:
             if parsed_status is None:
                 return None
             row = self._entries.get(parsed_status["request_id"])
-            if row is None or row[1] in _TERMINAL:
+            if row is None:
+                if parsed_status["status"] in _TERMINAL:
+                    self._remember_terminal(parsed_status["request_id"])
+                return None
+            if row[1] in _TERMINAL:
                 return None
             signature = f"{parsed_status['status']}:{parsed_status.get('client_reply_id', '')}:{parsed_status.get('reason', '')}"
             if signature in self._seen_statuses[parsed_status["request_id"]]:

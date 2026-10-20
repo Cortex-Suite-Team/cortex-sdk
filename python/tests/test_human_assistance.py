@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 import pytest
 
 from cortex_sdk import CortexError
+from cortex_sdk.human_assistance import HumanAssistanceInbox
 from cortex_sdk.types import HumanAssistanceNotification
 
 from .helpers import make_client, wait_for
@@ -31,6 +32,63 @@ def status(request_id: str, value: str, **extra: object) -> dict[str, object]:
     return envelope("human_assistance::status", {
         "version": 1, "request_id": request_id, "status": value, **extra,
     })
+
+
+@pytest.mark.parametrize('invalid', [{'toString': None}, [], None])
+def test_malformed_status_and_reason_leave_inbox_healthy(invalid: object) -> None:
+    inbox = HumanAssistanceInbox()
+    assert inbox.handle(request('req-malformed'), 'sess_abc123') is not None
+    assert inbox.handle(envelope('human_assistance::status', {
+        'version': 1, 'request_id': 'req-malformed', 'status': invalid,
+    }), 'sess_abc123') is None
+    assert inbox.handle(envelope('human_assistance::status', {
+        'version': 1, 'request_id': 'req-malformed', 'status': 'reply_rejected',
+        'client_reply_id': 'reply-malformed', 'reason': invalid,
+    }), 'sess_abc123') is None
+    assert [row['request_id'] for row in inbox.requests()] == ['req-malformed']
+    assert inbox.handle(status('req-malformed', 'expired'), 'sess_abc123') is not None
+
+
+@pytest.mark.parametrize('terminal', ['expired', 'revoked', 'resolved'])
+def test_terminal_status_before_request_is_suppressed_in_inbox(terminal: str) -> None:
+    inbox = HumanAssistanceInbox()
+    assert inbox.handle(status(f'req-{terminal}', terminal), 'sess_abc123') is None
+    assert inbox.handle(request(f'req-{terminal}'), 'sess_abc123') is None
+    assert inbox.requests() == []
+    with pytest.raises(CortexError):
+        inbox.reply(request_id=f'req-{terminal}', client_reply_id='late', action='refuse',
+                    option_id=None, text=None)
+
+
+def test_terminal_cache_overflow_fails_closed() -> None:
+    inbox = HumanAssistanceInbox()
+    for index in range(65):
+        assert inbox.handle(status(f'closed-{index}', 'resolved'), 'sess_abc123') is None
+    assert inbox.handle(request('closed-0'), 'sess_abc123') is None
+    assert inbox.handle(request('closed-64'), 'sess_abc123') is None
+    assert inbox.handle(request('unknown-after-overflow'), 'sess_abc123') is None
+    assert inbox.requests() == []
+
+
+@pytest.mark.asyncio
+async def test_terminal_status_before_request_over_mock_session_manager() -> None:
+    server = await start_mock_server(auto_init_echo=True)
+    events: list[HumanAssistanceNotification] = []
+    client = make_client(server, [])
+    client.on_human_assistance(events.append)
+    try:
+        await client.connect()
+        await wait_for(lambda: client.session_id is not None)
+        a = client.session_id
+        await server.broadcast(status('req-first-terminal', 'revoked'))
+        await server.broadcast(request('req-first-terminal'))
+        await asyncio.sleep(0.03)
+        assert events == []
+        assert client.human_assistance_requests == []
+        assert client.session_id == a
+    finally:
+        await client.disconnect()
+        await server.close()
 
 
 @pytest.mark.asyncio

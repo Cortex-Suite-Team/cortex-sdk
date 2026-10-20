@@ -1,6 +1,7 @@
 import { startMockServer } from './mock-server.js';
 import { makeTestClient, waitFor } from './helpers.js';
 import type { CortexMessage, HumanAssistanceNotification } from '../src/types.js';
+import { HumanAssistanceInbox } from '../src/human-assistance.js';
 
 const deadline = '2099-01-01T00:00:00Z';
 function request(requestId: string, options = [{ id: 'approve', label: 'Approve' }]) {
@@ -15,6 +16,68 @@ function status(requestId: string, value: string, extra: Record<string, unknown>
 }
 
 describe('Human Assistance responder (mock SessionManager)', () => {
+  it('rejects malformed status objects without throwing or changing inbox state', () => {
+    const inbox = new HumanAssistanceInbox();
+    expect(inbox.handle(request('req-malformed') as CortexMessage, 'sess_abc123')?.type).toBe('human_assistance::request');
+    for (const invalid of [{ toString: null }, [], null]) {
+      const malformed = status('req-malformed', 'expired') as CortexMessage;
+      malformed.payload = { version: 1, request_id: 'req-malformed', status: invalid };
+      expect(() => inbox.handle(malformed, 'sess_abc123')).not.toThrow();
+      expect(inbox.handle(malformed, 'sess_abc123')).toBeNull();
+      const malformedReason = status('req-malformed', 'reply_rejected',
+        { client_reply_id: 'reply-malformed', reason: invalid }) as CortexMessage;
+      expect(() => inbox.handle(malformedReason, 'sess_abc123')).not.toThrow();
+      expect(inbox.handle(malformedReason, 'sess_abc123')).toBeNull();
+    }
+    expect(inbox.requests().map((item) => item.request_id)).toEqual(['req-malformed']);
+    expect(inbox.handle(status('req-malformed', 'expired') as CortexMessage, 'sess_abc123')?.type)
+      .toBe('human_assistance::status');
+    expect(inbox.requests()).toEqual([]);
+  });
+
+  it('continues receiving chat after malformed HA status over WebSocket', async () => {
+    const server = await startMockServer({ autoInitEcho: true });
+    const chat: CortexMessage[] = [];
+    const client = makeTestClient(server, { onMessage: (message) => chat.push(message) });
+    try {
+      await client.connect();
+      server.broadcast({ ...status('req-bad', 'expired'),
+        payload: { version: 1, request_id: 'req-bad', status: { toString: null } } });
+      server.broadcast({ type: 'chat::question', schema: '1.0', session_id: 'sess_abc123',
+        payload: { content: ['Still receiving'] }, ts: new Date().toISOString() });
+      await waitFor(() => chat.some((item) => item.type === 'chat::question'));
+      expect(client.humanAssistanceRequests).toEqual([]);
+    } finally { await client.disconnect(); await server.close(); }
+  });
+
+  it('fails closed when the bounded terminal cache fills', () => {
+    const inbox = new HumanAssistanceInbox();
+    for (let index = 0; index <= 64; index += 1) {
+      expect(inbox.handle(status(`closed-${index}`, 'resolved') as CortexMessage, 'sess_abc123')).toBeNull();
+    }
+    expect(inbox.handle(request('closed-0') as CortexMessage, 'sess_abc123')).toBeNull();
+    expect(inbox.handle(request('closed-64') as CortexMessage, 'sess_abc123')).toBeNull();
+    expect(inbox.handle(request('unknown-after-overflow') as CortexMessage, 'sess_abc123')).toBeNull();
+    expect(inbox.requests()).toEqual([]);
+  });
+
+  it.each(['expired', 'revoked', 'resolved'])('suppresses a late request after %s arrives first', async (terminal) => {
+    const server = await startMockServer({ autoInitEcho: true });
+    const events: HumanAssistanceNotification[] = [];
+    const client = makeTestClient(server);
+    client.onHumanAssistance((event) => events.push(event));
+    try {
+      await client.connect();
+      const a = client.sessionId;
+      server.broadcast(status(`req-${terminal}`, terminal));
+      server.broadcast(request(`req-${terminal}`));
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      expect(events).toEqual([]);
+      expect(client.humanAssistanceRequests).toEqual([]);
+      await expect(client.replyHumanAssistance({ requestId: `req-${terminal}`, clientReplyId: 'late', action: 'refuse' })).rejects.toThrow();
+      expect(client.sessionId).toBe(a);
+    } finally { await client.disconnect(); await server.close(); }
+  });
   it('keeps DW A active while replying to two independent requests from B', async () => {
     const server = await startMockServer({ autoInitEcho: true, enableSchemaValidation: true });
     const chat: CortexMessage[] = [];
@@ -28,6 +91,7 @@ describe('Human Assistance responder (mock SessionManager)', () => {
       server.broadcast({ type: 'chat::question', schema: '1.0', session_id: 'sess_abc123',
         payload: { content: ['Question from A'] }, ts: new Date().toISOString() });
       await waitFor(() => chat.some((item) => item.type === 'chat::question'));
+      await waitFor(() => chat.some((item) => item.type === 'chat::answer'));
       expect(server.received.some((row) => row['type'] === 'chat::message')).toBe(true);
       const chatBefore = chat.length;
       server.broadcast(request('req-b1'));
