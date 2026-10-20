@@ -47,6 +47,7 @@ export interface SessionController {
     content: EscalationReplyContent | undefined,
     meta: Record<string, unknown> | undefined,
   ): Promise<void>;
+  sendHumanAssistanceReply(payload: Record<string, unknown>): Promise<void>;
   sendSystemTrigger(content: unknown, attachments: unknown[] | undefined): Promise<void>;
   sendTrigger(payload: Record<string, unknown>): Promise<void>;
   handleIncoming(data: string): void;
@@ -291,6 +292,10 @@ export function createSession(
         'escalation::reply',
         buildEscalationReplyPayload(escalationId, waitToken, action, content, meta),
       ));
+    },
+
+    sendHumanAssistanceReply(payload: Record<string, unknown>): Promise<void> {
+      return send(buildEnvelope('human_assistance::reply', payload));
     },
 
     sendSystemTrigger(content: unknown, attachments: unknown[] | undefined): Promise<void> {

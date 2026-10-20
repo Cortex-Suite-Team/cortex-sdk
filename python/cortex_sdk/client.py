@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import secrets
-from typing import BinaryIO
+from typing import BinaryIO, Callable
 from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 
 import httpx
@@ -33,6 +33,7 @@ from .files import (
     sanitize_message_attachments,
 )
 from .file_transfer import FileTransferManager
+from .human_assistance import HumanAssistanceInbox
 from .liveness import LivenessMonitor
 from .session import SessionManager
 from .transport import Transport
@@ -44,6 +45,10 @@ from .types import (
     FileListResult,
     FileRef,
     FileScope,
+    HumanAssistanceAction,
+    HumanAssistanceCallback,
+    HumanAssistanceNotification,
+    HumanAssistanceRequest,
     MessageCallback,
     SessionFileAttachmentInput,
     SessionState,
@@ -105,6 +110,8 @@ class CortexClient:
             on_fatal_error=self._handle_fatal_error,
         )
         self._file_transfers = FileTransferManager(self._transport, send_timeout)
+        self._human_assistance = HumanAssistanceInbox()
+        self._human_assistance_handlers: set[HumanAssistanceCallback] = set()
         self._liveness: LivenessMonitor | None = None
         self._reconnect_task: asyncio.Task[None] | None = None
         self._token_refresh_task: asyncio.Task[None] | None = None
@@ -160,6 +167,7 @@ class CortexClient:
         self._stop_liveness()
         self._stop_token_refresh()
         self._file_transfers.abort_all()
+        self._human_assistance.clear()
 
         if self._reconnect_task and not self._reconnect_task.done():
             self._reconnect_task.cancel()
@@ -202,6 +210,24 @@ class CortexClient:
             content=content,
             meta=meta,
         )
+
+    def on_human_assistance(self, handler: HumanAssistanceCallback) -> Callable[[], None]:
+        self._human_assistance_handlers.add(handler)
+        return lambda: self._human_assistance_handlers.discard(handler)
+
+    @property
+    def human_assistance_requests(self) -> list[HumanAssistanceRequest]:
+        return self._human_assistance.requests()
+
+    async def reply_human_assistance(
+        self, *, request_id: str, client_reply_id: str, action: HumanAssistanceAction,
+        option_id: str | None = None, text: str | None = None,
+    ) -> None:
+        await self._wait_for_open_channel()
+        self._require_session_id()
+        payload = self._human_assistance.reply(request_id=request_id, client_reply_id=client_reply_id,
+                                               action=action, option_id=option_id, text=text)
+        await self._session.send_human_assistance_reply(payload)
 
     async def upload_file(
         self,
@@ -390,6 +416,16 @@ class CortexClient:
         try:
             message: CortexMessage = json.loads(raw)
         except Exception:
+            return
+        if not isinstance(message, dict):
+            return
+        if message.get("type") in ("human_assistance::request", "human_assistance::status"):
+            event: HumanAssistanceNotification | None = self._human_assistance.handle(
+                message, self._session.session_id,
+            )
+            if event is not None:
+                for handler in tuple(self._human_assistance_handlers):
+                    handler(event)
             return
         if not self._file_transfers.handle_message(message):
             self._session.handle_message(sanitize_message_attachments(message))

@@ -221,6 +221,34 @@ export interface ReplyEscalationOptions {
   meta?: Record<string, unknown>;
 }
 
+export interface HumanAssistanceOption { id: string; label: string }
+export interface HumanAssistanceRequest {
+  version: 1;
+  request_id: string;
+  question: string;
+  options: HumanAssistanceOption[];
+  allow_text: boolean;
+  deadline_at: string;
+  status: 'pending';
+}
+export interface HumanAssistanceStatus {
+  version: 1;
+  request_id: string;
+  status: 'reply_accepted' | 'reply_rejected' | 'resolved' | 'expired' | 'revoked';
+  client_reply_id?: string;
+  reason?: 'unauthorized' | 'duplicate' | 'invalid_answer' | 'late';
+}
+export type HumanAssistanceNotification =
+  | { type: 'human_assistance::request'; payload: HumanAssistanceRequest }
+  | { type: 'human_assistance::status'; payload: HumanAssistanceStatus };
+export interface ReplyHumanAssistanceOptions {
+  requestId: string;
+  clientReplyId: string;
+  action: 'answer' | 'refuse';
+  optionId?: string;
+  text?: string;
+}
+
 /** Transient UI state emitted by SessionManager. Never stored in transcript. */
 export interface SystemStateMessage {
   type: 'system::state';

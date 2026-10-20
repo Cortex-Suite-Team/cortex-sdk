@@ -135,3 +135,41 @@ class ReplyEscalationOptions(TypedDict):
     action: EscalationReplyAction
     content: NotRequired[EscalationReplyContent]
     meta: NotRequired[dict[str, object]]
+
+
+class HumanAssistanceOption(TypedDict):
+    id: str
+    label: str
+
+
+class HumanAssistanceRequest(TypedDict):
+    version: Literal[1]
+    request_id: str
+    question: str
+    options: list[HumanAssistanceOption]
+    allow_text: bool
+    deadline_at: str
+    status: Literal["pending"]
+
+
+class HumanAssistanceStatus(TypedDict):
+    version: Literal[1]
+    request_id: str
+    status: Literal["reply_accepted", "reply_rejected", "resolved", "expired", "revoked"]
+    client_reply_id: NotRequired[str]
+    reason: NotRequired[Literal["unauthorized", "duplicate", "invalid_answer", "late"]]
+
+
+class HumanAssistanceRequestNotification(TypedDict):
+    type: Literal["human_assistance::request"]
+    payload: HumanAssistanceRequest
+
+
+class HumanAssistanceStatusNotification(TypedDict):
+    type: Literal["human_assistance::status"]
+    payload: HumanAssistanceStatus
+
+
+HumanAssistanceNotification = HumanAssistanceRequestNotification | HumanAssistanceStatusNotification
+HumanAssistanceCallback = Callable[[HumanAssistanceNotification], None]
+HumanAssistanceAction = Literal["answer", "refuse"]

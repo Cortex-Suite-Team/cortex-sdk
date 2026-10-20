@@ -155,6 +155,9 @@ class SessionManager:
         )
         await self._send(self._build_envelope("escalation::reply", payload))
 
+    async def send_human_assistance_reply(self, payload: dict[str, object]) -> None:
+        await self._send(self._build_envelope("human_assistance::reply", payload))
+
     # ── inbound handling ──────────────────────────────────────────────────────
 
     def handle_incoming(self, raw: str) -> None:

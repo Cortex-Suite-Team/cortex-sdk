@@ -19,6 +19,7 @@ PAYLOAD_SCHEMA_MAP: dict[str, str] = {
     "sandbox::continue": "sandbox.continue.json",
     "sandbox::stop": "sandbox.stop.json",
     "escalation::reply": "escalation.reply.json",
+    "human_assistance::reply": "human_assistance.reply.json",
 }
 
 

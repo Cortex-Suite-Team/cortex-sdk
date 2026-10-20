@@ -22,6 +22,7 @@ import { debugLog, readSdkDebugFlag } from './debug.js';
 import { createTransport } from './transport.js';
 import { createLiveness } from './liveness.js';
 import { createSession } from './session.js';
+import { HumanAssistanceInbox } from './human-assistance.js';
 import { createUploadSource, type UploadInput } from './upload.js';
 import { FileTransferManager, type UploadSource } from './file-transfer.js';
 import {
@@ -36,6 +37,9 @@ import type {
   SessionState,
   ChannelState,
   ReplyEscalationOptions,
+  HumanAssistanceNotification,
+  HumanAssistanceRequest,
+  ReplyHumanAssistanceOptions,
   WebSocketCtor,
   FetchFn,
   DownloadFileOptions,
@@ -78,6 +82,8 @@ export class CortexClient {
     & Pick<CortexClientOptions, 'apiKey' | 'onMessage' | 'workerRef'>;
   private readonly _platform: CortexClientPlatform;
   private readonly _messageHandlers = new Set<(message: CortexMessage) => void>();
+  private readonly _humanAssistanceHandlers = new Set<(event: HumanAssistanceNotification) => void>();
+  private readonly _humanAssistance = new HumanAssistanceInbox();
 
   private _channelState: ChannelState = 'CLOSED';
   private _accessToken: string | null = null;
@@ -132,6 +138,12 @@ export class CortexClient {
     this._transport.onText = (data) => {
       let message: CortexMessage;
       try { message = JSON.parse(data) as CortexMessage; } catch { return; }
+      if (!message || typeof message !== 'object' || Array.isArray(message)) return;
+      if (message.type === 'human_assistance::request' || message.type === 'human_assistance::status') {
+        const event = this._humanAssistance.handle(message, this._session.sessionId);
+        if (event) for (const handler of this._humanAssistanceHandlers) handler(event);
+        return;
+      }
       if (!this._fileTransfers.handleMessage(message)) this._session.handleMessage(sanitizeMessageAttachments(message));
     };
     this._transport.onBinary = (data) => this._fileTransfers.handleBinary(data);
@@ -152,6 +164,15 @@ export class CortexClient {
     return () => {
       this._messageHandlers.delete(handler);
     };
+  }
+
+  onHumanAssistance(handler: (event: HumanAssistanceNotification) => void): () => void {
+    this._humanAssistanceHandlers.add(handler);
+    return () => { this._humanAssistanceHandlers.delete(handler); };
+  }
+
+  get humanAssistanceRequests(): HumanAssistanceRequest[] {
+    return this._humanAssistance.requests();
   }
 
   connect(): Promise<void> {
@@ -177,6 +198,7 @@ export class CortexClient {
     this._disconnectRequested = true;
     this._stopBackgroundActivity();
     this._fileTransfers.abortAll();
+    this._humanAssistance.clear();
     this._resetConnectionRuntimeState();
     this._transport.close();
   }
@@ -205,6 +227,12 @@ export class CortexClient {
       options.content,
       options.meta,
     );
+  }
+
+  async replyHumanAssistance(options: ReplyHumanAssistanceOptions): Promise<void> {
+    this._requireActiveSessionId();
+    const payload = this._humanAssistance.reply(options);
+    await this._session.sendHumanAssistanceReply(payload);
   }
 
   async uploadFile(file: UploadInput, options: UploadFileOptions = {}): Promise<string> {

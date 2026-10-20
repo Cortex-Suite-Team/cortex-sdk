@@ -24,6 +24,7 @@ const PAYLOAD_SCHEMA_MAP: Record<string, string> = {
   'sandbox::continue': 'sandbox.continue.json',
   'sandbox::stop': 'sandbox.stop.json',
   'escalation::reply': 'escalation.reply.json',
+  'human_assistance::reply': 'human_assistance.reply.json',
 };
 
 const ajv = new Ajv({ allErrors: true, strict: false });

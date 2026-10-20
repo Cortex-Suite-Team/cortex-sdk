@@ -38,7 +38,10 @@
         "sandbox::snapshot",
         "sandbox::lifecycle",
         "escalation::request",
-        "escalation::reply"
+        "escalation::reply",
+        "human_assistance::request",
+        "human_assistance::status",
+        "human_assistance::reply"
       ]
     },
     "schema": {
