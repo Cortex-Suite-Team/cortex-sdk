@@ -49,7 +49,7 @@ def test_malformed_status_and_reason_leave_inbox_healthy(invalid: object) -> Non
     assert inbox.handle(status('req-malformed', 'expired'), 'sess_abc123') is not None
 
 
-@pytest.mark.parametrize('terminal', ['expired', 'revoked', 'resolved', 'delivery_failed'])
+@pytest.mark.parametrize('terminal', ['expired', 'revoked', 'resolved', 'delivery_failed', 'cancelled'])
 def test_terminal_status_before_request_is_suppressed_in_inbox(terminal: str) -> None:
     inbox = HumanAssistanceInbox()
     assert inbox.handle(status(f'req-{terminal}', terminal), 'sess_abc123') is None
@@ -82,6 +82,23 @@ def test_delivery_failed_is_whole_request_terminal_without_reply_fields() -> Non
     assert inbox.handle(status('failed-delivery', 'delivery_failed'), 'sess_abc123') is None
     with pytest.raises(CortexError):
         inbox.reply(request_id='failed-delivery', client_reply_id='late', action='refuse',
+                    option_id=None, text=None)
+
+
+def test_cancelled_terminal_and_neutral_rejection_require_exact_fields() -> None:
+    inbox = HumanAssistanceInbox()
+    assert inbox.handle(request('req-cancelled'), 'sess_abc123') is not None
+    assert inbox.handle(status('req-cancelled', 'reply_rejected', reason='not_admitted'), 'sess_abc123') is None
+    rejected = inbox.handle(status('req-cancelled', 'reply_rejected',
+                                   reason='not_admitted', client_reply_id='reply-1'), 'sess_abc123')
+    assert rejected is not None and rejected['payload']['reason'] == 'not_admitted'
+    assert inbox.handle(status('req-cancelled', 'cancelled', reason='not_admitted'), 'sess_abc123') is None
+    terminal = inbox.handle(status('req-cancelled', 'cancelled'), 'sess_abc123')
+    assert terminal is not None and terminal['payload']['status'] == 'cancelled'
+    assert inbox.handle(status('req-cancelled', 'cancelled'), 'sess_abc123') is None
+    assert inbox.requests() == []
+    with pytest.raises(CortexError):
+        inbox.reply(request_id='req-cancelled', client_reply_id='reply-2', action='refuse',
                     option_id=None, text=None)
 
 

@@ -75,7 +75,7 @@ describe('Human Assistance responder (mock SessionManager)', () => {
     expect(() => inbox.reply({ requestId: 'failed-delivery', clientReplyId: 'late', action: 'refuse' })).toThrow();
   });
 
-  it.each(['expired', 'revoked', 'resolved', 'delivery_failed'])('suppresses a late request after %s arrives first', async (terminal) => {
+  it.each(['expired', 'revoked', 'resolved', 'delivery_failed', 'cancelled'])('suppresses a late request after %s arrives first', async (terminal) => {
     const server = await startMockServer({ autoInitEcho: true });
     const events: HumanAssistanceNotification[] = [];
     const client = makeTestClient(server);
@@ -91,6 +91,21 @@ describe('Human Assistance responder (mock SessionManager)', () => {
       await expect(client.replyHumanAssistance({ requestId: `req-${terminal}`, clientReplyId: 'late', action: 'refuse' })).rejects.toThrow();
       expect(client.sessionId).toBe(a);
     } finally { await client.disconnect(); await server.close(); }
+  });
+  it('keeps cancellation terminal and a neutral rejection tied to a reply ID', () => {
+    const inbox = new HumanAssistanceInbox();
+    inbox.handle(request('req-cancelled') as CortexMessage, 'sess_abc123');
+    expect(inbox.handle(status('req-cancelled', 'reply_rejected', { reason: 'not_admitted' }) as CortexMessage,
+      'sess_abc123')).toBeNull();
+    expect(inbox.handle(status('req-cancelled', 'reply_rejected', { reason: 'not_admitted', client_reply_id: 'reply-1' }) as CortexMessage,
+      'sess_abc123')?.payload).toMatchObject({ reason: 'not_admitted', client_reply_id: 'reply-1' });
+    expect(inbox.handle(status('req-cancelled', 'cancelled', { reason: 'not_admitted' }) as CortexMessage,
+      'sess_abc123')).toBeNull();
+    expect(inbox.handle(status('req-cancelled', 'cancelled') as CortexMessage,
+      'sess_abc123')?.payload).toMatchObject({ status: 'cancelled' });
+    expect(inbox.handle(status('req-cancelled', 'cancelled') as CortexMessage, 'sess_abc123')).toBeNull();
+    expect(inbox.requests()).toEqual([]);
+    expect(() => inbox.reply({ requestId: 'req-cancelled', clientReplyId: 'reply-2', action: 'refuse' })).toThrow();
   });
   it('keeps DW A active while replying to two independent requests from B', async () => {
     const server = await startMockServer({ autoInitEcho: true, enableSchemaValidation: true });

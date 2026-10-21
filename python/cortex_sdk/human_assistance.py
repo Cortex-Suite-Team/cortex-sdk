@@ -20,9 +20,9 @@ from .types import (
 
 _ID = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 _DEADLINE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$")
-_TERMINAL = {"resolved", "expired", "revoked", "delivery_failed"}
+_TERMINAL = {"resolved", "expired", "revoked", "delivery_failed", "cancelled"}
 _STATUSES = {"reply_accepted", "reply_rejected", *_TERMINAL}
-_REASONS = {"unauthorized", "duplicate", "invalid_answer", "late"}
+_REASONS = {"unauthorized", "duplicate", "invalid_answer", "late", "not_admitted"}
 _MAX_REQUESTS = 64
 
 

@@ -7,9 +7,9 @@ import type {
 const ID = /^[A-Za-z0-9_.:-]{1,128}$/;
 const DEADLINE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 const MAX_REQUESTS = 64;
-const TERMINAL = new Set(['resolved', 'expired', 'revoked', 'delivery_failed']);
+const TERMINAL = new Set(['resolved', 'expired', 'revoked', 'delivery_failed', 'cancelled']);
 const STATUSES = new Set(['reply_accepted', 'reply_rejected', ...TERMINAL]);
-const REASONS = new Set(['unauthorized', 'duplicate', 'invalid_answer', 'late']);
+const REASONS = new Set(['unauthorized', 'duplicate', 'invalid_answer', 'late', 'not_admitted']);
 
 function object(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
