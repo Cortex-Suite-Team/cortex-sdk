@@ -61,7 +61,21 @@ describe('Human Assistance responder (mock SessionManager)', () => {
     expect(inbox.requests()).toEqual([]);
   });
 
-  it.each(['expired', 'revoked', 'resolved'])('suppresses a late request after %s arrives first', async (terminal) => {
+  it('accepts delivery_failed only as a whole-request terminal status', () => {
+    const inbox = new HumanAssistanceInbox();
+    inbox.handle(request('failed-delivery') as CortexMessage, 'sess_abc123');
+    expect(inbox.handle(status('failed-delivery', 'delivery_failed', { reason: 'late' }) as CortexMessage,
+      'sess_abc123')).toBeNull();
+    expect(inbox.handle(status('failed-delivery', 'delivery_failed', { client_reply_id: 'person-1' }) as CortexMessage,
+      'sess_abc123')).toBeNull();
+    expect(inbox.handle(status('failed-delivery', 'delivery_failed') as CortexMessage,
+      'sess_abc123')?.payload).toMatchObject({ status: 'delivery_failed' });
+    expect(inbox.requests()).toEqual([]);
+    expect(inbox.handle(status('failed-delivery', 'delivery_failed') as CortexMessage, 'sess_abc123')).toBeNull();
+    expect(() => inbox.reply({ requestId: 'failed-delivery', clientReplyId: 'late', action: 'refuse' })).toThrow();
+  });
+
+  it.each(['expired', 'revoked', 'resolved', 'delivery_failed'])('suppresses a late request after %s arrives first', async (terminal) => {
     const server = await startMockServer({ autoInitEcho: true });
     const events: HumanAssistanceNotification[] = [];
     const client = makeTestClient(server);

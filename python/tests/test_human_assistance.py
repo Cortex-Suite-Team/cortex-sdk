@@ -49,7 +49,7 @@ def test_malformed_status_and_reason_leave_inbox_healthy(invalid: object) -> Non
     assert inbox.handle(status('req-malformed', 'expired'), 'sess_abc123') is not None
 
 
-@pytest.mark.parametrize('terminal', ['expired', 'revoked', 'resolved'])
+@pytest.mark.parametrize('terminal', ['expired', 'revoked', 'resolved', 'delivery_failed'])
 def test_terminal_status_before_request_is_suppressed_in_inbox(terminal: str) -> None:
     inbox = HumanAssistanceInbox()
     assert inbox.handle(status(f'req-{terminal}', terminal), 'sess_abc123') is None
@@ -68,6 +68,21 @@ def test_terminal_cache_overflow_fails_closed() -> None:
     assert inbox.handle(request('closed-64'), 'sess_abc123') is None
     assert inbox.handle(request('unknown-after-overflow'), 'sess_abc123') is None
     assert inbox.requests() == []
+
+
+def test_delivery_failed_is_whole_request_terminal_without_reply_fields() -> None:
+    inbox = HumanAssistanceInbox()
+    assert inbox.handle(request('failed-delivery'), 'sess_abc123') is not None
+    assert inbox.handle(status('failed-delivery', 'delivery_failed', reason='late'), 'sess_abc123') is None
+    assert inbox.handle(status('failed-delivery', 'delivery_failed', client_reply_id='person-1'),
+                        'sess_abc123') is None
+    observed = inbox.handle(status('failed-delivery', 'delivery_failed'), 'sess_abc123')
+    assert observed is not None and observed['payload']['status'] == 'delivery_failed'
+    assert inbox.requests() == []
+    assert inbox.handle(status('failed-delivery', 'delivery_failed'), 'sess_abc123') is None
+    with pytest.raises(CortexError):
+        inbox.reply(request_id='failed-delivery', client_reply_id='late', action='refuse',
+                    option_id=None, text=None)
 
 
 @pytest.mark.asyncio

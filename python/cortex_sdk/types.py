@@ -155,7 +155,7 @@ class HumanAssistanceRequest(TypedDict):
 class HumanAssistanceStatus(TypedDict):
     version: Literal[1]
     request_id: str
-    status: Literal["reply_accepted", "reply_rejected", "resolved", "expired", "revoked"]
+    status: Literal["reply_accepted", "reply_rejected", "resolved", "expired", "revoked", "delivery_failed"]
     client_reply_id: NotRequired[str]
     reason: NotRequired[Literal["unauthorized", "duplicate", "invalid_answer", "late"]]
 
