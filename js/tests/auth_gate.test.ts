@@ -314,7 +314,7 @@ describe('sendLogin sends system::login', () => {
       await waitFor(() => server.received.some((f) => f['type'] === 'chat::message'));
 
       const chatFrame = server.received.find((f) => f['type'] === 'chat::message')!;
-      expect((chatFrame['payload'] as Record<string, unknown>)['content']).toBe('Hello after login');
+      expect((chatFrame['payload'] as Record<string, unknown>)['content']).toEqual(['Hello after login']);
       expect(chatFrame['session_id']).toBe(FIXED_SESSION_ID);
     } finally {
       await client.disconnect();

@@ -252,7 +252,7 @@ class SessionFileFake:
             self.drop_next_echo = False
             return
         hostile_echo = [{**d, "file_id": f"fi_{i}", "snapshot_id": f"sn_{i}"} for i, d in enumerate(bound)]
-        await send({"type": "chat::echo", "payload": {"content": [payload.get("content")], "role": "user", "meta": {"client_msg_id": client_msg_id, "attachments": hostile_echo}}})
+        await send({"type": "chat::echo", "payload": {"content": payload.get("content"), "role": "user", "meta": {"client_msg_id": client_msg_id, "attachments": hostile_echo}}})
         outputs = [f["descriptor"] for f in OUTPUTS]
         await send({"type": "chat::answer", "payload": {**MESSAGES["chat_answer"], "meta": {
             "billing": {"summary": {"authoritative": False}},
@@ -340,8 +340,8 @@ async def test_attachment_and_download_errors_do_not_fail_the_session() -> None:
         await client.send_message("x", meta={"client_msg_id": "cli_msg_one", "attachments": [{"file_ref": OUTPUTS[0]["descriptor"]["file_ref"]}]})
         await wait_for(lambda: len([m for m in server.received if m["type"] == "chat::message"]) == 2)
         assert [m["payload"] for m in server.received if m["type"] == "chat::message"] == [
-            {"content": "x", "role": "user", "meta": {"client_msg_id": "cli_msg_empty"}},
-            {"content": "x", "role": "user", "meta": {"client_msg_id": "cli_msg_one", "attachments": [{"file_ref": OUTPUTS[0]["descriptor"]["file_ref"]}]}},
+            {"content": ["x"], "role": "user", "meta": {"client_msg_id": "cli_msg_empty"}},
+            {"content": ["x"], "role": "user", "meta": {"client_msg_id": "cli_msg_one", "attachments": [{"file_ref": OUTPUTS[0]["descriptor"]["file_ref"]}]}},
         ]
         # The second one is rejected server-side (assistant file as user attachment); discard both.
         await wait_for(lambda: any(m["type"] == "system::error" for m in received))

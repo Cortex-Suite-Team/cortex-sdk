@@ -106,7 +106,7 @@ async def test_file_upload() -> None:
         payload = chat_msg["payload"]
         assert payload["meta"]["attachments"] == [{"file_ref": FIXED_ATTACHMENT_ID}]  # type: ignore[index]
         assert "attachments" not in payload
-        assert payload["content"] == "Please summarize this document."  # type: ignore[index]
+        assert payload["content"] == ["Please summarize this document."]  # type: ignore[index]
 
         answer = next(
             m for m in received

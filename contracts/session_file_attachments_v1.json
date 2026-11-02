@@ -147,7 +147,7 @@
   ],
   "messages": {
     "chat_message": {
-      "content": "Compare the attached revenue files.",
+      "content": ["Compare the attached revenue files."],
       "role": "user",
       "meta": {
         "client_msg_id": "cli_msg_ea_3in_2out",

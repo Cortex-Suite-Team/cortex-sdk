@@ -94,7 +94,7 @@ describe('file_upload', () => {
         { file_ref: FIXED_ATTACHMENT_ID },
       ]);
       expect(msgPayload).not.toHaveProperty('attachments');
-      expect(msgPayload['content']).toBe('Please summarize this document.');
+      expect(msgPayload['content']).toEqual(['Please summarize this document.']);
 
       const answer = received.find(m => m.type === 'chat::answer' && m.payload['answer_kind'] === 'final')!;
       expect(answer.payload['turn']).toBe(6);

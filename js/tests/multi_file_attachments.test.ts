@@ -235,8 +235,8 @@ describe('EA 3-input / 2-output session files over the SDK WebSocket', () => {
       await client.sendMessage({ content: 'x', meta: { client_msg_id: 'cli_msg_one', attachments: [{ file_ref: fixture.outputs[0]!.descriptor.file_ref }] } });
       await waitFor(() => server.received.filter((m) => m['type'] === 'chat::message').length === 2);
       expect(server.received.filter((m) => m['type'] === 'chat::message').map((m) => m['payload'])).toEqual([
-        { content: 'x', role: 'user', meta: { client_msg_id: 'cli_msg_empty' } },
-        { content: 'x', role: 'user', meta: { client_msg_id: 'cli_msg_one', attachments: [{ file_ref: fixture.outputs[0]!.descriptor.file_ref }] } },
+        { content: ['x'], role: 'user', meta: { client_msg_id: 'cli_msg_empty' } },
+        { content: ['x'], role: 'user', meta: { client_msg_id: 'cli_msg_one', attachments: [{ file_ref: fixture.outputs[0]!.descriptor.file_ref }] } },
       ]);
       // The second one is rejected server-side (assistant file as user attachment); discard both.
       await waitFor(() => received.some((m) => m.type === 'system::error'));
