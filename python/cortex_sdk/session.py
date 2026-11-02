@@ -120,11 +120,17 @@ class SessionManager:
 
     async def send_chat_message(
         self,
-        content: str,
+        content: str | list[str],
         attachments: list[SessionFileAttachmentInput] | None,
         meta: dict[str, object] | None = None,
     ) -> None:
-        payload: dict[str, object] = {"content": content, "role": "user"}
+        if isinstance(content, str):
+            content_items = [content]
+        elif isinstance(content, list) and all(isinstance(item, str) for item in content):
+            content_items = list(content)
+        else:
+            raise make_error("transport_protocol_violation", "chat::message content must be a string or list of strings")
+        payload: dict[str, object] = {"content": content_items, "role": "user"}
         # meta merged first; official attachments param always wins
         combined_meta: dict[str, object] = dict(meta) if meta else {}
         # Only canonical sf_ references ever leave the SDK, whichever way they were passed.

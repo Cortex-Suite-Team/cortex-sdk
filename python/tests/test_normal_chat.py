@@ -4,6 +4,7 @@ normal_chat transcript:  system::init → chat::message → chat::answer
 from __future__ import annotations
 
 import pytest
+from cortex_sdk.errors import CortexError
 
 from .helpers import make_client, wait_for
 from .mock_server import FIXED_SESSION_ID, start_mock_server
@@ -47,8 +48,15 @@ async def test_normal_chat() -> None:
 
         # chat::message must carry role=user
         chat_msg = next(m for m in server.received if m["type"] == "chat::message")
-        assert chat_msg["payload"]["content"] == "Hello runtime"  # type: ignore[index]
+        assert chat_msg["payload"]["content"] == ["Hello runtime"]  # type: ignore[index]
         assert chat_msg["payload"]["role"] == "user"  # type: ignore[index]
+        await client.send_message([])
+        await wait_for(lambda: len([m for m in server.received if m["type"] == "chat::message"]) == 2)
+        assert [m for m in server.received if m["type"] == "chat::message"][-1]["payload"]["content"] == []  # type: ignore[index]
+        with pytest.raises(CortexError, match="chat::message content must be") as error:
+            await client.send_message(["ok", 1])  # type: ignore[list-item]
+        assert error.value.code == "transport_protocol_violation"
+        assert len([m for m in server.received if m["type"] == "chat::message"]) == 2
     finally:
         await client.disconnect()
         await server.close()

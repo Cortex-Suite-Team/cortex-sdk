@@ -63,7 +63,7 @@ describe('normal_chat', () => {
       // Verify chat::message was sent
       const chatMsg = server.received.find(m => m['type'] === 'chat::message');
       expect(chatMsg).toBeDefined();
-      expect((chatMsg!['payload'] as Record<string, unknown>)['content']).toBe('Hello runtime');
+      expect((chatMsg!['payload'] as Record<string, unknown>)['content']).toEqual(['Hello runtime']);
       expect((chatMsg!['payload'] as Record<string, unknown>)['role']).toBe('user');
 
       const rawChatFrame = server.receivedFrames
@@ -72,6 +72,11 @@ describe('normal_chat', () => {
       expect(rawChatFrame).toBeDefined();
       expect(rawChatFrame?.['type']).toBe('chat::message');
       expect(rawChatFrame?.['session_id']).toBe(FIXED_SESSION_ID);
+      await client.sendMessage({ content: [] });
+      await waitFor(() => server.received.filter(m => m['type'] === 'chat::message').length === 2);
+      expect((server.received.filter(m => m['type'] === 'chat::message')[1]['payload'] as Record<string, unknown>)['content']).toEqual([]);
+      await expect(client.sendMessage({ content: ['ok', 1] as unknown as string[] })).rejects.toThrow('chat::message content must be');
+      expect(server.received.filter(m => m['type'] === 'chat::message')).toHaveLength(2);
     } finally {
       await client.disconnect();
       await server.close();

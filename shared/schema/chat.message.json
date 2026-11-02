@@ -8,7 +8,9 @@
   "required": ["content", "role"],
   "properties": {
     "content": {
-      "description": "User-visible message content"
+      "description": "User-visible text content; an empty array is allowed for attachment-only messages.",
+      "type": "array",
+      "items": { "type": "string" }
     },
     "meta": {
       "type": "object",

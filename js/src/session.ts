@@ -38,7 +38,7 @@ export interface SessionController {
   sendInit(bootstrap: RuntimeBootstrap): Promise<void>;
   sendResync(): Promise<void>;
   sendStop(): Promise<void>;
-  sendChatMessage(content: unknown, attachments: SessionFileAttachmentInput[] | undefined, meta?: Record<string, unknown>): Promise<void>;
+  sendChatMessage(content: string | string[], attachments: SessionFileAttachmentInput[] | undefined, meta?: Record<string, unknown>): Promise<void>;
   sendSystemLogin(login: string, password: string): Promise<void>;
   sendEscalationReply(
     escalationId: string,
@@ -136,11 +136,18 @@ export function createSession(
   }
 
   function buildMessagePayload(
-    content: unknown,
+    content: string | string[],
     attachments: SessionFileAttachmentInput[] | undefined,
     meta?: Record<string, unknown>,
   ): Record<string, unknown> {
-    const payload: Record<string, unknown> = { content, role: 'user' };
+    if (typeof content !== 'string' &&
+        (!Array.isArray(content) || !content.every((item) => typeof item === 'string'))) {
+      throw makeError('transport_protocol_violation', 'chat::message content must be a string or array of strings');
+    }
+    const payload: Record<string, unknown> = {
+      content: typeof content === 'string' ? [content] : [...content],
+      role: 'user',
+    };
     const combinedMeta: Record<string, unknown> = {};
     // meta merged first; official attachments param always wins
     if (meta) Object.assign(combinedMeta, meta);
@@ -266,7 +273,7 @@ export function createSession(
       return send(buildEnvelope('sandbox::stop', {}));
     },
 
-    sendChatMessage(content: unknown, attachments: SessionFileAttachmentInput[] | undefined, meta?: Record<string, unknown>): Promise<void> {
+    async sendChatMessage(content: string | string[], attachments: SessionFileAttachmentInput[] | undefined, meta?: Record<string, unknown>): Promise<void> {
       return send(buildEnvelope('chat::message', buildMessagePayload(content, attachments, meta)));
     },
 

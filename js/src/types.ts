@@ -201,7 +201,7 @@ export interface SessionContext {
 }
 
 export interface SendMessageOptions {
-  content: unknown;
+  content: string | string[];
   attachments?: SessionFileAttachmentInput[];
   meta?: Record<string, unknown>;
 }

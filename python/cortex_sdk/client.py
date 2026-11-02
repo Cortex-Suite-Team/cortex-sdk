@@ -182,7 +182,7 @@ class CortexClient:
 
     async def send_message(
         self,
-        content: str,
+        content: str | list[str],
         attachments: list[SessionFileAttachmentInput] | None = None,
         *,
         meta: dict[str, object] | None = None,

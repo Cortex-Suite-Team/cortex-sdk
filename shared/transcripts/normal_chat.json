@@ -29,7 +29,7 @@
       "direction": "client",
       "type": "chat::message",
       "payload": {
-        "content": "Hello runtime",
+        "content": ["Hello runtime"],
         "role": "user"
       },
       "note": "session_id: sess_abc123 — SDK uses session_id learned from system::opened"
