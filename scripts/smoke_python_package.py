@@ -67,6 +67,9 @@ assert callable(client.upload_file)
 assert callable(client.download_file)
 assert callable(client.list_files)
 assert callable(client.promote_file)
+assert callable(client.reply_human_assistance)
+assert callable(client.on_human_assistance)
+assert client.human_assistance_requests == []
 
 print("Python smoke test: OK")
 """,

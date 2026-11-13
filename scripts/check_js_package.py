@@ -110,6 +110,13 @@ const client = new CortexClient({
 });
 console.assert(typeof client.sessionState === "string", "sessionState should be a string");
 console.assert(typeof client.channelState === "string", "channelState should be a string");
+for (const Client of [CortexClient, BrowserClient, NodeClient]) {
+  const instance = new Client({ apiKey: "test", onMessage: () => {} });
+  for (const method of ["onHumanAssistance", "replyHumanAssistance", "uploadFile", "downloadFile", "listFiles", "promoteFile"]) {
+    if (typeof instance[method] !== "function") throw new Error(`Missing public method: ${method}`);
+  }
+  if (!Array.isArray(instance.humanAssistanceRequests)) throw new Error("HA snapshot missing");
+}
 console.log("JS smoke test: OK");
 """,
             encoding="utf-8",
@@ -129,6 +136,9 @@ client.uploadFile(new Uint8Array());
 client.downloadFile("sf_test");
 client.listFiles();
 client.promoteFile("sf_test", { projectId: "project" });
+client.onHumanAssistance((event) => { void event.type; });
+client.replyHumanAssistance({ requestId: "request", clientReplyId: "reply", action: "answer", text: "answer" });
+void client.humanAssistanceRequests;
 void client.sessionContext;
 void client.accessToken;
 void client.cpApiUrl;
