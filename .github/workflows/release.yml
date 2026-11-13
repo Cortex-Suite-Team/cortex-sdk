@@ -7,6 +7,10 @@ on:
         description: 'Complete npm/GitHub 1.1.22 using qualified run 43462797037 (requires separate OWNER GO)'
         type: boolean
         default: false
+      diagnose_npm:
+        description: 'Read-only npm authentication and permission diagnostics'
+        type: boolean
+        default: false
       client_repository:
         description: 'Release the next client package after SDK completion'
         type: choice
@@ -36,7 +40,7 @@ env:
 
 jobs:
   validate-shared:
-    if: ${{ !inputs.recover_npm && (inputs.client_repository == '' || inputs.client_repository == 'none') }}
+    if: ${{ !inputs.diagnose_npm && !inputs.recover_npm && (inputs.client_repository == '' || inputs.client_repository == 'none') }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -376,7 +380,7 @@ jobs:
 
   recover-npm:
     name: Complete npm and GitHub 1.1.22
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.recover_npm && inputs.client_repository == 'none' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && !inputs.diagnose_npm && inputs.recover_npm && inputs.client_repository == 'none' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: npm
@@ -455,7 +459,7 @@ jobs:
 
   publish-client:
     name: Publish qualified client package
-    if: ${{ github.event_name == 'workflow_dispatch' && !inputs.recover_npm && inputs.client_repository != 'none' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && !inputs.diagnose_npm && !inputs.recover_npm && inputs.client_repository != 'none' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: npm
@@ -577,3 +581,29 @@ jobs:
         run: |
           test -n "$NODE_AUTH_TOKEN"
           npm publish "./$PACKAGE_FILE" --access public --ignore-scripts
+
+  diagnose-npm:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.diagnose_npm }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: npm
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: https://registry.npmjs.org
+      - name: Pin npm
+        run: npm install --global npm@11.15.0
+      - name: Check authentication and package access without publishing
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          node -e 'const t=process.env.NODE_AUTH_TOKEN; if(!t || t!==t.trim()) throw new Error("Token is missing or contains surrounding whitespace"); console.log("Token presence/whitespace check: PASS")'
+          npm --version
+          npm config get registry
+          npm whoami
+          npm profile get tfa --json
+          npm access list packages --json | node -e 'let s="";process.stdin.on("data",c=>s+=c);process.stdin.on("end",()=>console.log(JSON.stringify(Object.fromEntries(Object.entries(JSON.parse(s)).filter(([k])=>k.startsWith("@cortex-suite/"))))))'
