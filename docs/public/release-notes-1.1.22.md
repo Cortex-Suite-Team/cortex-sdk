@@ -7,6 +7,8 @@ Release candidate for both `@cortex-suite/sdk` and `cortex-suite-sdk`.
 - Canonical `content: string[]` chat payloads across Python, Node.js, and browser bindings.
 - Multiple inbound attachments and generated-file descriptors with strict public `sf_` identities,
   CFT1 upload/download, and disconnect/reconnect transfer invariants.
+- Require `ws>=8.23.0` within major 8 and lock `8.23.0`, removing the vulnerable
+  `8.20.0` baseline ([GHSA-96hv-2xvq-fx4p](https://github.com/advisories/GHSA-96hv-2xvq-fx4p)).
 - Installed-package smoke checks cover the HA responder and SessionFiles APIs in every binding.
 
 The accepted transport baseline is source commit

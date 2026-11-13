@@ -50,7 +50,7 @@
   },
   "dependencies": {
     "@types/node": "20.19.39",
-    "ws": "^8.18.0"
+    "ws": "^8.23.0"
   },
   "overrides": {
     "fast-uri": ">=3.1.2"
