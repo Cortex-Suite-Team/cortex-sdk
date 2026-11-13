@@ -2,6 +2,11 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      recover_npm:
+        description: 'Complete npm/GitHub 1.1.22 using qualified run 43462797037 (requires separate OWNER GO)'
+        type: boolean
+        default: false
   push:
     tags:
       - "v*"
@@ -20,6 +25,7 @@ env:
 
 jobs:
   validate-shared:
+    if: ${{ !inputs.recover_npm }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -258,6 +264,7 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
+          registry-url: https://registry.npmjs.org
 
       - name: Pin OIDC-capable npm
         run: npm install --global npm@11.15.0
@@ -271,6 +278,8 @@ jobs:
       - name: Publish JS package to npm
         working-directory: js
         run: npm publish --access public --ignore-scripts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   github-release:
     name: Create GitHub Release
@@ -353,3 +362,82 @@ jobs:
                 core.info(`Deleted previous ${artifact.name} artifact ${artifact.id}; retained ${mine.id}.`);
               }
             }
+
+  recover-npm:
+    name: Complete npm and GitHub 1.1.22
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.recover_npm }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: npm
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Check out the qualified release source
+        uses: actions/checkout@v5
+        with:
+          ref: f18fcd523ade343dc830740e18485eb63fc32cf4
+
+      - name: Verify original run and immutable tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          EXPECTED_SHA=f18fcd523ade343dc830740e18485eb63fc32cf4
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$(gh api repos/Cortex-Suite-Team/cortex-sdk/actions/runs/43462797037 --jq .head_sha)" = "$EXPECTED_SHA"
+          test "$(git ls-remote --tags origin 'refs/tags/v1.1.22^{}' | cut -f1)" = "$EXPECTED_SHA"
+          test "$(node -p "require('./js/package.json').version")" = 1.1.22
+
+      - name: Set up Node.js and npm registry authentication
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: https://registry.npmjs.org
+
+      - name: Pin npm
+        run: npm install --global npm@11.15.0
+
+      - name: Download original qualified JS dist
+        uses: actions/download-artifact@v6
+        with:
+          name: js-dist
+          path: js/dist
+          run-id: 43462797037
+          github-token: ${{ github.token }}
+
+      - name: Download original published Python dist
+        uses: actions/download-artifact@v6
+        with:
+          name: python-dist
+          path: python/dist
+          run-id: 43462797037
+          github-token: ${{ github.token }}
+
+      - name: Verify exact original package bytes
+        run: |
+          set -euo pipefail
+          (cd js && npm pack --ignore-scripts)
+          printf '%s  %s\n' \
+            b8b6d82010328239ea1dc9539e9ecfd35c138b4dda16bf2f2d5d58fdf3e7088e js/cortex-suite-sdk-1.1.22.tgz \
+            4449fbf6ec91fec3749af2973e3f821bff497b8a63c86af7f7010a19f3c75aba python/dist/cortex_suite_sdk-1.1.22-py3-none-any.whl \
+            97cd581836e7f504c946e50697d6ccb0c5d7cb282b55a4f8ea656ae4062c6ec4 python/dist/cortex_suite_sdk-1.1.22.tar.gz | sha256sum --check
+
+      - name: Publish original JS package to npm
+        working-directory: js
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          test -n "$NODE_AUTH_TOKEN"
+          npm publish ./cortex-suite-sdk-1.1.22.tgz --access public --ignore-scripts
+
+      - name: Create GitHub Release with original qualified assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          (cd js/dist && zip -r "$RUNNER_TEMP/cortex-sdk-js-dist-v1.1.22.zip" .)
+          gh release create v1.1.22 --verify-tag --title v1.1.22 --generate-notes \
+            "$RUNNER_TEMP/cortex-sdk-js-dist-v1.1.22.zip" \
+            python/dist/cortex_suite_sdk-1.1.22-py3-none-any.whl \
+            python/dist/cortex_suite_sdk-1.1.22.tar.gz
