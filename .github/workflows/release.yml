@@ -7,10 +7,6 @@ on:
         description: 'Complete npm/GitHub 1.1.22 using qualified run 43462797037 (requires separate OWNER GO)'
         type: boolean
         default: false
-      stage_npm:
-        description: 'Submit the qualified npm candidate for registry 2FA approval'
-        type: boolean
-        default: false
       client_repository:
         description: 'Release the next client package after SDK completion'
         type: choice
@@ -40,7 +36,7 @@ env:
 
 jobs:
   validate-shared:
-    if: ${{ !inputs.stage_npm && !inputs.recover_npm && (inputs.client_repository == '' || inputs.client_repository == 'none') }}
+    if: ${{ !inputs.recover_npm && (inputs.client_repository == '' || inputs.client_repository == 'none') }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -442,17 +438,11 @@ jobs:
         working-directory: js
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          STAGE_NPM: ${{ inputs.stage_npm }}
         run: |
           test -n "$NODE_AUTH_TOKEN"
-          if [ "$STAGE_NPM" = true ]; then
-            npm stage publish ./cortex-suite-sdk-1.1.22.tgz --access public --ignore-scripts
-          else
-            npm publish ./cortex-suite-sdk-1.1.22.tgz --access public --ignore-scripts
-          fi
+          npm publish ./cortex-suite-sdk-1.1.22.tgz --access public --ignore-scripts
 
       - name: Create GitHub Release with original qualified assets
-        if: ${{ !inputs.stage_npm }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -584,11 +574,6 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           PACKAGE_FILE: ${{ steps.package.outputs.filename }}
-          STAGE_NPM: ${{ inputs.stage_npm }}
         run: |
           test -n "$NODE_AUTH_TOKEN"
-          if [ "$STAGE_NPM" = true ]; then
-            npm stage publish "./$PACKAGE_FILE" --access public --ignore-scripts
-          else
-            npm publish "./$PACKAGE_FILE" --access public --ignore-scripts
-          fi
+          npm publish "./$PACKAGE_FILE" --access public --ignore-scripts
