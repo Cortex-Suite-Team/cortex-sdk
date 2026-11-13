@@ -7,6 +7,17 @@ on:
         description: 'Complete npm/GitHub 1.1.22 using qualified run 43462797037 (requires separate OWNER GO)'
         type: boolean
         default: false
+      client_repository:
+        description: 'Release the next client package after SDK completion'
+        type: choice
+        options: [none, sdk-ui, chat-widget]
+        default: none
+      client_sha:
+        description: 'Exact client source SHA'
+        type: string
+      package_sha256:
+        description: 'SHA256 of the qualified npm tarball'
+        type: string
   push:
     tags:
       - "v*"
@@ -25,7 +36,7 @@ env:
 
 jobs:
   validate-shared:
-    if: ${{ !inputs.recover_npm }}
+    if: ${{ !inputs.recover_npm && (inputs.client_repository == '' || inputs.client_repository == 'none') }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -365,7 +376,7 @@ jobs:
 
   recover-npm:
     name: Complete npm and GitHub 1.1.22
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.recover_npm }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.recover_npm && inputs.client_repository == 'none' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: npm
@@ -441,3 +452,128 @@ jobs:
             "$RUNNER_TEMP/cortex-sdk-js-dist-v1.1.22.zip" \
             python/dist/cortex_suite_sdk-1.1.22-py3-none-any.whl \
             python/dist/cortex_suite_sdk-1.1.22.tar.gz
+
+  publish-client:
+    name: Publish qualified client package
+    if: ${{ github.event_name == 'workflow_dispatch' && !inputs.recover_npm && inputs.client_repository != 'none' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: npm
+    permissions:
+      contents: read
+    steps:
+      - name: Check out exact client source
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ inputs.client_repository == 'sdk-ui' && 'Cortex-Suite-Team/cortex-sdk-ui' || 'Cortex-Suite-Team/cortex-chat-widget' }}
+          ref: ${{ inputs.client_sha }}
+
+      - name: Verify source and package identity
+        env:
+          SOURCE_SHA: ${{ inputs.client_sha }}
+          CLIENT_REPOSITORY: ${{ inputs.client_repository }}
+          PACKAGE_SHA256: ${{ inputs.package_sha256 }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$PACKAGE_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(node -p "require('./package.json').name")" = "@cortex-suite/$CLIENT_REPOSITORY"
+          test "$(node -p "require('./package.json').version")" = 0.1.1
+
+      - name: Set up Node.js and registry
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: https://registry.npmjs.org
+
+      - name: Pin npm and verify published predecessors
+        env:
+          CLIENT_REPOSITORY: ${{ inputs.client_repository }}
+        run: |
+          set -euo pipefail
+          npm install --global npm@11.15.0
+          test "$(npm view @cortex-suite/sdk@1.1.22 version)" = 1.1.22
+          if [ "$CLIENT_REPOSITORY" = chat-widget ]; then
+            test "$(npm view @cortex-suite/sdk-ui@0.1.1 version)" = 0.1.1
+          fi
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Verify contracts and production dependencies
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm test -- --runInBand --silent
+          npm audit --omit=dev
+
+      - name: Build qualified package
+        env:
+          CLIENT_REPOSITORY: ${{ inputs.client_repository }}
+        run: |
+          set -euo pipefail
+          if [ "$CLIENT_REPOSITORY" = chat-widget ]; then
+            npm run check:reproducible
+            npm run check:isolated-package
+          else
+            npm run build
+          fi
+
+      - name: Pack and verify frozen package bytes
+        id: package
+        env:
+          EXPECTED_SHA256: ${{ inputs.package_sha256 }}
+          SOURCE_SHA: ${{ inputs.client_sha }}
+        run: |
+          set -euo pipefail
+          FILE=$(npm pack --ignore-scripts --json | jq -r '.[0].filename')
+          printf '%s  %s\n' "$EXPECTED_SHA256" "$FILE" | sha256sum --check
+          sha256sum "$FILE" > package.sha256
+          printf 'source_sha=%s\nworkflow_sha=%s\nrun=%s/%s/actions/runs/%s\n' \
+            "$SOURCE_SHA" "$GITHUB_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > release-source.txt
+          echo "filename=$FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Verify installed SDK and UI contract
+        if: ${{ inputs.client_repository == 'sdk-ui' }}
+        env:
+          PACKAGE_FILE: ${{ steps.package.outputs.filename }}
+        run: |
+          set -euo pipefail
+          CONSUMER="$RUNNER_TEMP/native-client-consumer"
+          mkdir "$CONSUMER"
+          printf '{"private":true,"type":"module"}\n' > "$CONSUMER/package.json"
+          npm install --prefix "$CONSUMER" --ignore-scripts --no-audit --no-fund \
+            @cortex-suite/sdk@1.1.22 "$GITHUB_WORKSPACE/$PACKAGE_FILE"
+          cat > "$CONSUMER/consumer.ts" <<'TS'
+          import { CortexClient } from '@cortex-suite/sdk';
+          import { createChatController, createHumanAssistanceController } from '@cortex-suite/sdk-ui';
+          const client = new CortexClient({apiKey: 'package-check', onMessage: () => {}});
+          const chat = createChatController({client});
+          const ha = createHumanAssistanceController({client});
+          if (ha.getCards().length !== 0) throw new Error('Unexpected HA inbox');
+          ha.destroy(); chat.destroy();
+          TS
+          node node_modules/typescript/bin/tsc --strict --noEmit --target ES2022 \
+            --module NodeNext --moduleResolution NodeNext "$CONSUMER/consumer.ts"
+          cp "$CONSUMER/consumer.ts" "$CONSUMER/consumer.mjs"
+          node "$CONSUMER/consumer.mjs"
+
+      - name: Retain qualified package and provenance
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ inputs.client_repository }}-0.1.1
+          path: |
+            ${{ steps.package.outputs.filename }}
+            package.sha256
+            release-source.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Publish exact qualified tarball
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PACKAGE_FILE: ${{ steps.package.outputs.filename }}
+        run: |
+          test -n "$NODE_AUTH_TOKEN"
+          npm publish "./$PACKAGE_FILE" --access public --ignore-scripts
