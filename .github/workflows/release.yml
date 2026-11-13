@@ -605,5 +605,5 @@ jobs:
           npm --version
           npm config get registry
           npm whoami
-          npm profile get tfa --json
           npm access list packages --json | node -e 'let s="";process.stdin.on("data",c=>s+=c);process.stdin.on("end",()=>console.log(JSON.stringify(Object.fromEntries(Object.entries(JSON.parse(s)).filter(([k])=>k.startsWith("@cortex-suite/"))))))'
+          npm view @cortex-suite/sdk name version --json
